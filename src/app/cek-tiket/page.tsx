@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { supabase, type Aduan } from "@/lib/supabase";
+import { supabase, type AduanPublicTrack } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
 import { StatusStepper } from "@/components/StatusStepper";
-import { Search, Loader2, AlertCircle, Building2, Calendar, MapPin, Tag, UserX, Lock, MessageCircle } from "lucide-react";
+import { Search, Loader2, AlertCircle, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
 export default function CekTiketPage() {
   const [ticket, setTicket] = useState("");
   const [loading, setLoading] = useState(false);
-  const [aduan, setAduan] = useState<Aduan | null>(null);
+  const [aduan, setAduan] = useState<AduanPublicTrack | null>(null);
   const [error, setError] = useState("");
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -24,14 +24,12 @@ export default function CekTiketPage() {
 
     try {
       const { data, error } = await supabase
-        .from("aduan")
-        .select("*")
-        .eq("ticket_number", ticket.trim())
+        .rpc("get_aduan_by_ticket", { p_ticket_number: ticket.trim() })
         .single();
 
       if (error) throw error;
       setAduan(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError("Nomor Tiket / Tracking ID tidak ditemukan. Pastikan kode yang dimasukkan sudah benar.");
     } finally {
@@ -102,17 +100,8 @@ export default function CekTiketPage() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-semibold text-slate-500">
-                {aduan.is_anonymous && (
-                  <span className="flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-md text-slate-700">
-                    <UserX className="w-3.5 h-3.5" /> Anonim
-                  </span>
-                )}
-                {aduan.is_secret && (
-                  <span className="flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-md text-slate-700">
-                    <Lock className="w-3.5 h-3.5" /> Rahasia
-                  </span>
-                )}
+              <div className="text-xs font-semibold text-slate-500">
+                Dilaporkan: {format(new Date(aduan.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
               </div>
             </div>
 
@@ -122,57 +111,24 @@ export default function CekTiketPage() {
               <StatusStepper status={aduan.status} />
             </div>
 
-            {/* Title & Description */}
-            <div className="space-y-4">
+            {/* Title */}
+            <div>
               <h2 className="text-2xl font-bold text-slate-900">{aduan.title}</h2>
-              <div className="bg-[#E3F2FD]/30 p-6 rounded-2xl border border-[#90CAF9]/40 leading-relaxed text-slate-700 whitespace-pre-wrap text-sm">
-                {aduan.description}
-              </div>
-            </div>
-
-            {/* Metadata Fields */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
-              <div>
-                <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
-                  <Calendar className="w-3.5 h-3.5 text-[#1565C0]" /> Tanggal Kejadian
-                </span>
-                <span className="font-semibold text-slate-900">
-                  {aduan.date_of_incident ? format(new Date(aduan.date_of_incident), "dd MMM yyyy", { locale: idLocale }) : "-"}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
-                  <MapPin className="w-3.5 h-3.5 text-[#1565C0]" /> Lokasi
-                </span>
-                <span className="font-semibold text-slate-900">{aduan.location || "-"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
-                  <Building2 className="w-3.5 h-3.5 text-[#1565C0]" /> Instansi Tujuan
-                </span>
-                <span className="font-semibold text-slate-900">{aduan.institution || "-"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
-                  <Tag className="w-3.5 h-3.5 text-[#1565C0]" /> Kategori
-                </span>
-                <span className="font-semibold text-slate-900">{aduan.category || "-"}</span>
-              </div>
             </div>
 
             {/* Balasan Resmi Admin jika ada */}
-            {aduan.reply_content && (
+            {aduan.response && (
               <div className="bg-[#E3F2FD] border border-[#90CAF9] p-6 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-[#0D47A1] font-bold text-sm">
                   <MessageCircle className="w-5 h-5 text-[#1565C0]" />
                   Tindak Lanjut & Balasan Resmi Instansi:
                 </div>
                 <div className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">
-                  {aduan.reply_content}
+                  {aduan.response}
                 </div>
-                {aduan.replied_at && (
+                {aduan.updated_at && (
                   <div className="text-xs text-slate-500 pt-2 border-t border-[#90CAF9]/50">
-                    Ditindaklanjuti pada: {format(new Date(aduan.replied_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
+                    Ditindaklanjuti pada: {format(new Date(aduan.updated_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
                   </div>
                 )}
               </div>

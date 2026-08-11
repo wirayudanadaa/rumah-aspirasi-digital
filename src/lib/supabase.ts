@@ -30,3 +30,13 @@ export interface Aduan {
   replied_at?: string;
   created_at: string;
 }
+
+export interface AduanPublicTrack {
+  ticket_number: string;
+  classification: AduanClassification;
+  title: string;
+  status: AduanStatus;
+  response: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
