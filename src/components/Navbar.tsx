@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Search, UserCheck } from "lucide-react";
+import { Home, Search, UserCheck, Send } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -21,17 +21,21 @@ export function Navbar() {
           </div>
         </Link>
 
-        <nav className="flex items-center gap-6 text-sm font-semibold text-slate-700">
-          <Link href="/" className="hover:text-[#1565C0] transition-colors flex items-center gap-1.5">
+        <nav className="flex items-center gap-4 md:gap-6 text-xs md:text-sm font-semibold text-slate-700">
+          <Link href="/" className="hover:text-[#1565C0] transition-colors hidden sm:inline-flex">
             Beranda
           </Link>
+          <Link href="/#form-aduan" className="hover:text-[#1565C0] transition-colors flex items-center gap-1.5">
+            <Send className="w-3.5 h-3.5 text-[#1565C0]" />
+            Sampaikan Aduan
+          </Link>
           <Link href="/cek-tiket" className="hover:text-[#1565C0] transition-colors flex items-center gap-1.5">
-            <Search className="w-4 h-4" />
+            <Search className="w-3.5 h-3.5 text-[#1565C0]" />
             Cek Status
           </Link>
           <Link 
             href="/admin" 
-            className="bg-[#1565C0] hover:bg-[#0D47A1] text-white px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm"
+            className="bg-[#1565C0] hover:bg-[#0D47A1] text-white px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm"
           >
             <UserCheck className="w-4 h-4" />
             Portal Admin

@@ -1,29 +1,172 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { supabase, type Aduan, type AduanStatus } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, use, useCallback } from "react";
+import { type Aduan, type AduanStatus } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { 
-  ArrowLeft, 
-  Loader2, 
-  User, 
-  Mail, 
-  Calendar, 
-  MessageSquare, 
-  Building2, 
-  MapPin, 
-  Tag, 
-  UserX, 
-  Lock, 
-  Send 
+import {
+  ArrowLeft,
+  Loader2,
+  User,
+  Mail,
+  Calendar,
+  MessageSquare,
+  Building2,
+  MapPin,
+  Tag,
+  UserX,
+  Lock,
+  Send,
+  History,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface AduanHistory {
+  id: string;
+  aduan_id: string;
+  action: string;
+  old_status: string | null;
+  new_status: string;
+  old_response: string | null;
+  new_response: string | null;
+  changed_by: string | null;
+  created_at: string;
+}
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    PENDING: "bg-amber-100 text-amber-800 border-amber-300",
+    VERIFIKASI: "bg-purple-100 text-purple-800 border-purple-300",
+    PROSES: "bg-blue-100 text-blue-800 border-blue-300",
+    SELESAI: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    DITOLAK: "bg-red-100 text-red-800 border-red-300",
+  };
+  const cls = map[status] ?? "bg-slate-100 text-slate-700 border-slate-300";
+  return (
+    <span className={`${cls} px-2 py-0.5 rounded-full text-[11px] font-extrabold border`}>
+      {status}
+    </span>
+  );
+}
+
+// ─── Timeline Entry ───────────────────────────────────────────────────────────
+
+function TimelineEntry({ entry, isLast }: { entry: AduanHistory; isLast: boolean }) {
+  const actor =
+    entry.changed_by !== null
+      ? "Admin"
+      : entry.action === "CREATED"
+      ? "Pelapor"
+      : "Riwayat awal";
+
+  const dotColor: Record<string, string> = {
+    CREATED: "bg-emerald-500",
+    INITIAL_SNAPSHOT: "bg-slate-400",
+    STATUS_CHANGED: "bg-[#1565C0]",
+    RESPONSE_UPDATED: "bg-amber-500",
+    UPDATED: "bg-purple-500",
+  };
+
+  const dot = dotColor[entry.action] ?? "bg-slate-400";
+
+  let title = "";
+  let body: React.ReactNode = null;
+
+  switch (entry.action) {
+    case "CREATED":
+      title = "Laporan diterima";
+      body = (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-slate-500 text-xs">Status awal:</span>
+          <StatusBadge status={entry.new_status} />
+        </div>
+      );
+      break;
+    case "INITIAL_SNAPSHOT":
+      title = "Riwayat awal";
+      body = (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-slate-500 text-xs">Status tercatat:</span>
+          <StatusBadge status={entry.new_status} />
+        </div>
+      );
+      break;
+    case "STATUS_CHANGED":
+      title = "Status diperbarui";
+      body = (
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatusBadge status={entry.old_status ?? "-"} />
+          <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <StatusBadge status={entry.new_status} />
+        </div>
+      );
+      break;
+    case "RESPONSE_UPDATED":
+      title = "Tanggapan diperbarui";
+      body = entry.new_response ? (
+        <p className="text-slate-600 text-xs bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl leading-relaxed line-clamp-3">
+          {entry.new_response}
+        </p>
+      ) : null;
+      break;
+    case "UPDATED":
+      title = "Status & tanggapan diperbarui";
+      body = (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <StatusBadge status={entry.old_status ?? "-"} />
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <StatusBadge status={entry.new_status} />
+          </div>
+          {entry.new_response && (
+            <p className="text-slate-600 text-xs bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl leading-relaxed line-clamp-3">
+              {entry.new_response}
+            </p>
+          )}
+        </div>
+      );
+      break;
+    default:
+      title = entry.action;
+  }
+
+  return (
+    <div className="flex gap-4">
+      {/* Vertical line + dot */}
+      <div className="flex flex-col items-center">
+        <div className={`w-3 h-3 rounded-full shrink-0 mt-1 ${dot}`} />
+        {!isLast && <div className="w-px flex-1 bg-slate-200 mt-1.5" />}
+      </div>
+
+      {/* Content */}
+      <div className={`pb-5 flex-1 min-w-0 ${isLast ? "" : ""}`}>
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="text-sm font-bold text-slate-800">{title}</span>
+          <span className="text-[10px] font-medium text-slate-400 shrink-0">
+            {actor}
+          </span>
+        </div>
+        <p className="text-[10px] text-slate-400 mb-2">
+          {format(new Date(entry.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
+        </p>
+        {body}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function AdminAduanDetail({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
   const { id } = use(params);
+  const supabase = createClient();
+
   const [aduan, setAduan] = useState<Aduan | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,49 +174,110 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const [replyContent, setReplyContent] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchAduan();
+  const [history, setHistory] = useState<AduanHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+
+  // ── Fetch history ──────────────────────────────────────────────────────────
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const { data, error: histErr } = await supabase
+        .from("aduan_history")
+        .select("*")
+        .eq("aduan_id", id)
+        .order("created_at", { ascending: false });
+
+      if (histErr) throw histErr;
+      setHistory((data as AduanHistory[]) ?? []);
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string; details?: string; hint?: string };
+      console.error("[HISTORY FETCH ERROR]", { code: e?.code, message: e?.message, details: e?.details, hint: e?.hint });
+      setHistoryError("Gagal memuat riwayat penanganan.");
+    } finally {
+      setHistoryLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const fetchAduan = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("aduan")
-        .select("*")
-        .eq("id", id)
-        .single();
+  // ── Fetch aduan ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAduan = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("aduan")
+          .select("*")
+          .eq("id", id)
+          .single();
 
-      if (error) throw error;
-      setAduan(data);
-      setStatus(data.status);
-      setReplyContent(data.reply_content || "");
-    } catch (error: any) {
-      console.error("Error fetching aduan:", error);
-      setError("Data aduan tidak ditemukan.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (error) throw error;
+        if (isMounted) {
+          setAduan(data);
+          setStatus(data.status);
+          setReplyContent((data as unknown as Record<string, string>).response || "");
+          setLoading(false);
+        }
+      } catch (error: unknown) {
+        console.error("Error fetching aduan:", error);
+        if (isMounted) {
+          setError("Data aduan tidak ditemukan.");
+          setLoading(false);
+        }
+      }
+    };
 
+    fetchAduan();
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // Fetch history separately so setState calls don't cascade inside the aduan effect
+  useEffect(() => {
+    void (async () => { await fetchHistory(); })();
+  }, [fetchHistory]);
+
+  // ── Save handler ───────────────────────────────────────────────────────────
   const handleSaveTindakLanjut = async () => {
     if (!aduan) return;
     setSaving(true);
+
+    // Normalize response: empty string → NULL
+    const normalizedResponse = replyContent.trim() === "" ? null : replyContent.trim();
+
     try {
       const { error } = await supabase
         .from("aduan")
         .update({
           status,
-          reply_content: replyContent,
-          replied_at: replyContent ? new Date().toISOString() : null,
+          response: normalizedResponse,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", aduan.id);
 
       if (error) throw error;
-      setAduan({ ...aduan, status, reply_content: replyContent, replied_at: new Date().toISOString() });
+
+      // Update local aduan state
+      setAduan({ ...aduan, status });
+      setReplyContent(normalizedResponse ?? "");
+
+      // Refresh history timeline without full page reload
+      await fetchHistory();
+
       alert("Status & Balasan Resmi berhasil diperbarui!");
-    } catch (error: any) {
-      console.error("Error updating aduan:", error);
-      alert("Gagal memperbarui data.");
+    } catch (err: unknown) {
+      const error = err as Record<string, string>;
+      console.error("[ADMIN UPDATE ERROR]", {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+      });
+      alert(`Gagal memperbarui data: ${error?.message || "Error tidak diketahui"}`);
     } finally {
       setSaving(false);
     }
@@ -115,7 +319,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       </Link>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Kolom Kiri: Detail Laporan & Form Balasan */}
+        {/* Kolom Kiri: Detail Laporan, Form Balasan, Timeline */}
         <div className="md:col-span-2 space-y-6">
           {/* Card Laporan */}
           <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-8 space-y-6">
@@ -187,7 +391,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                   onChange={(e) => setReplyContent(e.target.value)}
                   placeholder="Ketik balasan resmi instansi atau perkembangan penanganan laporan..."
                   className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm resize-none"
-                ></textarea>
+                />
               </div>
 
               <div className="flex justify-end">
@@ -201,6 +405,37 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Riwayat Penanganan (Timeline) */}
+          <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-8">
+            <div className="flex items-center gap-2 pb-4 mb-6 border-b border-slate-100">
+              <History className="w-5 h-5 text-[#1565C0]" />
+              <h3 className="font-extrabold text-[#0D47A1] text-lg">Riwayat Penanganan</h3>
+            </div>
+
+            {historyLoading ? (
+              <div className="flex items-center gap-3 text-slate-500 py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-[#1565C0]" />
+                <span className="text-sm">Memuat riwayat...</span>
+              </div>
+            ) : historyError ? (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-2xl font-medium">
+                {historyError}
+              </div>
+            ) : history.length === 0 ? (
+              <p className="text-slate-400 text-sm italic">Tidak ada riwayat penanganan.</p>
+            ) : (
+              <div>
+                {history.map((entry, idx) => (
+                  <TimelineEntry
+                    key={entry.id}
+                    entry={entry}
+                    isLast={idx === history.length - 1}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

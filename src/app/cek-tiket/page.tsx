@@ -28,7 +28,7 @@ export default function CekTiketPage() {
         .single();
 
       if (error) throw error;
-      setAduan(data);
+      setAduan(data as AduanPublicTrack);
     } catch (err: unknown) {
       console.error(err);
       setError("Nomor Tiket / Tracking ID tidak ditemukan. Pastikan kode yang dimasukkan sudah benar.");

@@ -41,16 +41,16 @@ export default function AduanFormPage() {
           email: data.email,
           title: data.title,
           description: data.description,
-          status: "PENDING",
         },
       ]);
 
       if (dbError) throw dbError;
 
       router.push(`/aduan/success/${ticketNumber}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Terjadi kesalahan saat mengirim aduan. Pastikan database Supabase sudah di-setup.");
+      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim aduan. Pastikan database Supabase sudah di-setup.";
+      setError(message);
     } finally {
       setLoading(false);
     }
