@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { supabase, AduanClassification } from "@/lib/supabase";
-import { generateTicketNumber } from "@/lib/utils";
+
 import { 
   AlertCircle, 
   Paperclip, 
@@ -30,7 +30,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSecret, setIsSecret] = useState(false);
-  const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
   // Realtime Stats State
   const [stats, setStats] = useState({
@@ -72,7 +72,9 @@ export default function Home() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFileName(e.target.files[0].name);
+      setFile(e.target.files[0]);
+    } else {
+      setFile(null);
     }
   };
 
@@ -82,49 +84,51 @@ export default function Home() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const data = {
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      title: formData.get("title") as string,
-      description: formData.get("description") as string,
-      date_of_incident: formData.get("date_of_incident") as string || undefined,
-      location: formData.get("location") as string || undefined,
-      institution: formData.get("institution") as string || undefined,
-      category: formData.get("category") as string || undefined,
-    };
+    
+    // Validate required text fields
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
 
-    if (!data.name || !data.email || !data.title || !data.description) {
+    if (!name || !email || !title || !description) {
       setError("Semua field wajib yang bertanda bintang (*) harus diisi!");
       setLoading(false);
       return;
     }
+    
+    // Add custom state fields that are not automatically in FormData (or override them)
+    formData.set("classification", classification);
+    formData.set("is_anonymous", isAnonymous ? "true" : "false");
+    formData.set("is_secret", isSecret ? "true" : "false");
 
-    const ticketNumber = generateTicketNumber();
+    // Add file if it exists
+    if (file) {
+      formData.set("attachment", file);
+    }
 
     try {
-      const { error: dbError } = await supabase.from("aduan").insert([
-        {
-          ticket_number: ticketNumber,
-          classification,
-          name: data.name,
-          email: data.email,
-          title: data.title,
-          description: data.description,
-          date_of_incident: data.date_of_incident,
-          location: data.location,
-          institution: data.institution,
-          category: data.category,
-          is_anonymous: isAnonymous,
-          is_secret: isSecret,
-        },
-      ]);
+      const response = await fetch("/api/aduan", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (dbError) throw dbError;
+      const result = await response.json();
 
-      router.push(`/aduan/success/${ticketNumber}`);
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Gagal mengirim laporan. Silakan coba lagi.");
+      }
+
+      if (result.warning) {
+        // We could show a toast here, but for now we just log it and proceed to success page.
+        // The aduan is successfully created.
+        console.warn("Laporan terkirim dengan peringatan:", result.warning);
+      }
+
+      router.push(`/aduan/success/${result.ticketNumber}`);
     } catch (err: unknown) {
       console.error(err);
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim aduan. Pastikan database Supabase sudah terhubung.";
+      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim aduan.";
       setError(message);
     } finally {
       setLoading(false);
@@ -375,7 +379,7 @@ export default function Home() {
                     accept=".jpg,.jpeg,.png,.pdf" 
                   />
                   <span className="text-xs text-slate-500 truncate max-w-[150px]">
-                    {fileName || "Maks. 2MB (JPG, PNG, PDF)"}
+                    {file ? file.name : "Maks. 2MB (JPG, PNG, PDF)"}
                   </span>
                 </div>
 

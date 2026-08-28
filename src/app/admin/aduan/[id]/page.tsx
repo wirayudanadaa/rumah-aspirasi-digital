@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, useCallback } from "react";
+import { useEffect, useState, use, useCallback, useMemo } from "react";
 import { type Aduan, type AduanStatus } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
@@ -20,6 +20,9 @@ import {
   Send,
   History,
   ArrowRight,
+  Paperclip,
+  ExternalLink,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +38,24 @@ interface AduanHistory {
   new_response: string | null;
   changed_by: string | null;
   created_at: string;
+}
+
+interface AduanAttachment {
+  id: string;
+  aduan_id: string;
+  file_name: string;
+  storage_path: string;
+  mime_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -165,7 +186,7 @@ function TimelineEntry({ entry, isLast }: { entry: AduanHistory; isLast: boolean
 
 export default function AdminAduanDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [aduan, setAduan] = useState<Aduan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +198,10 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const [history, setHistory] = useState<AduanHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
+
+  const [attachments, setAttachments] = useState<AduanAttachment[] | null>(null);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(true);
+  const [attachmentsError, setAttachmentsError] = useState("");
 
   // ── Fetch history ──────────────────────────────────────────────────────────
   const fetchHistory = useCallback(async () => {
@@ -198,8 +223,44 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     } finally {
       setHistoryLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, supabase]);
+
+  // ── Fetch attachments ──────────────────────────────────────────────────────
+  const fetchAttachments = useCallback(async () => {
+    setAttachmentsLoading(true);
+    setAttachmentsError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("[ATTACHMENT DEBUG]", {
+        routeId: id,
+        hasUser: Boolean(user),
+        userId: user?.id ?? null
+      });
+
+      if (!user) {
+        setAttachmentsError("Tidak terautentikasi.");
+        return;
+      }
+
+      const { data, error: attErr } = await supabase
+        .from("aduan_attachments")
+        .select("*")
+        .eq("aduan_id", id)
+        .order("created_at", { ascending: false });
+
+      if (attErr) throw attErr;
+      
+      console.log("[ATTACHMENT DEBUG]", { attachmentCount: data?.length ?? 0 });
+      setAttachments((data as AduanAttachment[]) ?? []);
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string };
+      console.error("[ATTACHMENTS FETCH ERROR]", err);
+      console.log("[ATTACHMENT DEBUG]", { errorCode: e?.code, errorMessage: e?.message });
+      setAttachmentsError("Gagal memuat lampiran.");
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  }, [id, supabase]);
 
   // ── Fetch aduan ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -238,8 +299,32 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
   // Fetch history separately so setState calls don't cascade inside the aduan effect
   useEffect(() => {
-    void (async () => { await fetchHistory(); })();
-  }, [fetchHistory]);
+    void (async () => {
+      await fetchHistory(); 
+      await fetchAttachments();
+    })();
+  }, [fetchHistory, fetchAttachments]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
+  const handleViewAttachment = async (path: string, download: boolean = false) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("attachments")
+        .createSignedUrl(path, 60, {
+          download
+        });
+
+      if (error) throw error;
+      
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+      }
+    } catch (err) {
+      console.error("[SIGNED URL ERROR]", err);
+      alert("Gagal membuka lampiran.");
+    }
+  };
 
   // ── Save handler ───────────────────────────────────────────────────────────
   const handleSaveTindakLanjut = async () => {
@@ -370,6 +455,61 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                 </span>
                 <span className="font-semibold text-slate-900">{aduan.category || "-"}</span>
               </div>
+            </div>
+
+            {/* Lampiran */}
+            <div className="pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2 pb-4">
+                <Paperclip className="w-5 h-5 text-[#1565C0]" />
+                <h3 className="font-extrabold text-[#0D47A1] text-lg">Lampiran</h3>
+              </div>
+              
+              {attachmentsLoading ? (
+                <div className="flex items-center gap-3 text-slate-500 py-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#1565C0]" />
+                  <span className="text-sm">Memuat lampiran...</span>
+                </div>
+              ) : attachmentsError ? (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl font-medium">
+                  {attachmentsError}
+                </div>
+              ) : !attachments || attachments.length === 0 ? (
+                <p className="text-slate-400 text-sm italic">Tidak ada lampiran.</p>
+              ) : (
+                <div className="space-y-3">
+                  {attachments.map((att) => (
+                    <div key={att.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="font-bold text-sm text-slate-900 truncate">{att.file_name}</span>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500 mt-1">
+                          <span>{formatBytes(att.file_size)}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                          <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                          <span>{format(new Date(att.created_at), "dd MMM yyyy, HH:mm")}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleViewAttachment(att.storage_path, false)}
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-[#E3F2FD] hover:text-[#1565C0] hover:border-[#90CAF9] text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Lihat
+                        </button>
+                        <button
+                          onClick={() => handleViewAttachment(att.storage_path, true)}
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Unduh
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

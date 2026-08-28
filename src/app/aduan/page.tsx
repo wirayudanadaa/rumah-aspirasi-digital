@@ -2,15 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { generateTicketNumber } from "@/lib/utils";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Paperclip } from "lucide-react";
 import Link from "next/link";
 
 export default function AduanFormPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    } else {
+      setFile(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -18,38 +25,41 @@ export default function AduanFormPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const data = {
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      title: formData.get("title") as string,
-      description: formData.get("description") as string,
-    };
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
 
-    if (!data.name || !data.email || !data.title || !data.description) {
+    if (!name || !email || !title || !description) {
       setError("Semua field harus diisi");
       setLoading(false);
       return;
     }
 
-    const ticketNumber = generateTicketNumber();
+    if (file) {
+      formData.set("attachment", file);
+    }
 
     try {
-      const { error: dbError } = await supabase.from("aduan").insert([
-        {
-          ticket_number: ticketNumber,
-          name: data.name,
-          email: data.email,
-          title: data.title,
-          description: data.description,
-        },
-      ]);
+      const response = await fetch("/api/aduan", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (dbError) throw dbError;
+      const result = await response.json();
 
-      router.push(`/aduan/success/${ticketNumber}`);
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Gagal mengirim laporan. Silakan coba lagi.");
+      }
+
+      if (result.warning) {
+        console.warn("Laporan terkirim dengan peringatan:", result.warning);
+      }
+
+      router.push(`/aduan/success/${result.ticketNumber}`);
     } catch (err: unknown) {
       console.error(err);
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim aduan. Pastikan database Supabase sudah di-setup.";
+      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim aduan.";
       setError(message);
     } finally {
       setLoading(false);
@@ -122,6 +132,28 @@ export default function AduanFormPage() {
                 placeholder="Jelaskan detail permasalahan, lokasi, dan kronologi kejadian..."
                 required
               ></textarea>
+            </div>
+
+            <div className="pt-2 pb-2">
+              <div className="flex items-center gap-3">
+                <label 
+                  htmlFor="attachment" 
+                  className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors border border-slate-300"
+                >
+                  <Paperclip className="w-4 h-4" />
+                  Upload Lampiran
+                </label>
+                <input 
+                  type="file" 
+                  id="attachment" 
+                  onChange={handleFileChange}
+                  className="hidden" 
+                  accept=".jpg,.jpeg,.png,.pdf" 
+                />
+                <span className="text-xs text-slate-500 truncate max-w-[200px]">
+                  {file ? file.name : "Maks. 2MB (JPG, PNG, PDF)"}
+                </span>
+              </div>
             </div>
 
             <button
