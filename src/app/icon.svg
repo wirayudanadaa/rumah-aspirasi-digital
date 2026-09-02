@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Latar belakang biru beradius (Rounded Rectangle) -->
+  <rect width="512" height="512" rx="112" fill="#0D47A1"/>
+  <!-- Bentuk Rumah (Putih) -->
+  <path d="M256 120L96 264h48v128h224V264h48L256 120z" fill="#FFFFFF"/>
+  <!-- Bentuk Speech Bubble (Biru) di dalam rumah (Aspirasi) -->
+  <path d="M256 208c-35.3 0-64 25.1-64 56s28.7 56 64 56c8.5 0 16.5-1.5 24-4l16 20v-22c14.6-10 24-25.5 24-46 0-30.9-28.7-56-64-56z" fill="#0D47A1"/>
+</svg>
