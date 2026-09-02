@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, ShieldCheck, Heart } from "lucide-react";
+import { Home, ShieldCheck } from "lucide-react";
 
 export function Footer() {
   return (
@@ -66,12 +66,9 @@ export function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div className="max-w-6xl mx-auto px-4 pt-6 border-t border-[#90CAF9]/60 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+      <div className="max-w-6xl mx-auto px-4 pt-6 border-t border-[#90CAF9]/60 text-center text-xs font-semibold text-slate-500">
         <div>
           &copy; {new Date().getFullYear()} Rumah Aspirasi Digital. Seluruh hak cipta dilindungi.
-        </div>
-        <div className="flex items-center gap-1">
-          Dibuat dengan <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /> untuk Pelayanan Publik Indonesia
         </div>
       </div>
     </footer>
