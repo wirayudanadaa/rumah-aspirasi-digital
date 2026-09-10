@@ -38,7 +38,7 @@ export function StatusStepper({ status }: StepperProps) {
   };
 
   return (
-    <div className="w-full py-6">
+    <div className="w-full py-6" aria-label="Progres penanganan laporan">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {steps.map((step, idx) => {
           const state = getStepState(step.key);
@@ -46,25 +46,32 @@ export function StatusStepper({ status }: StepperProps) {
 
           let bgClass = "bg-white text-slate-400 border-slate-200";
           let circleClass = "bg-slate-100 text-slate-400";
+          let ariaStatus = "Belum dimulai";
           
           if (state === "completed") {
             bgClass = "bg-emerald-50 text-emerald-800 border-emerald-300";
             circleClass = "bg-emerald-600 text-white";
+            ariaStatus = "Selesai";
           } else if (state === "current") {
             bgClass = "bg-[#E3F2FD] text-[#0D47A1] border-[#90CAF9] ring-4 ring-[#90CAF9]/30";
             circleClass = "bg-[#1565C0] text-white animate-pulse";
+            ariaStatus = "Sedang berlangsung";
           }
 
           return (
             <div 
               key={step.key} 
               className={`p-4 rounded-2xl border ${bgClass} transition-all flex flex-col items-center text-center space-y-2 relative shadow-sm`}
+              aria-current={state === "current" ? "step" : undefined}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm ${circleClass}`}>
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5" aria-hidden="true" />
               </div>
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-0.5">Langkah {idx + 1}</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                  <span className="sr-only">Status: {ariaStatus}. </span>
+                  Langkah {idx + 1}
+                </div>
                 <div className="font-bold text-sm leading-tight text-slate-900">{step.label}</div>
                 <div className="text-[11px] text-slate-500 mt-1">{step.desc}</div>
               </div>

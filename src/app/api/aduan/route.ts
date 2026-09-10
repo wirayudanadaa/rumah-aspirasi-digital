@@ -2,6 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateTicketNumber } from "@/lib/utils";
 import { randomUUID } from "crypto";
+import { verifyTurnstileToken } from "@/lib/turnstile";
+import { checkAduanRateLimit } from "@/lib/ratelimit";
+import { isOriginAllowed } from "@/lib/security";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,7 +108,23 @@ type SubmitResponse = SubmitSuccess | SubmitError;
 // ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest): Promise<NextResponse<SubmitResponse>> {
+  // ── 0. Origin / Referer Guard ──────────────────────────────────────────────
+  if (!isOriginAllowed(request)) {
+    console.warn(JSON.stringify({
+      log_type: "[ORIGIN GUARD]",
+      allowed: false,
+      originPresent: !!request.headers.get("origin")
+    }));
+    return NextResponse.json(
+      { success: false, message: "Permintaan ditolak. Pengiriman laporan hanya dapat dilakukan melalui portal resmi Rumah Aspirasi Digital." },
+      { status: 403 }
+    );
+  }
+
   // ── 1. Parse multipart/form-data ───────────────────────────────────────────
+  // NOTE: Next.js App Router requires FormData to be parsed before we can read
+  // individual fields (including the Turnstile token). The parse happens first,
+  // but no expensive file buffering occurs until step 3.
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -116,7 +135,59 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitRes
     );
   }
 
-  // ── 2. Extract & validate text fields ──────────────────────────────────────
+  // ── 2. Turnstile bot verification ──────────────────────────────────────────
+  const turnstileToken = formData.get("turnstile_token") as string | null;
+  const turnstileResult = await verifyTurnstileToken(turnstileToken);
+
+  if (!turnstileResult.success) {
+    const message =
+      turnstileResult.reason === "missing_token"
+        ? "Silakan selesaikan verifikasi keamanan terlebih dahulu."
+        : turnstileResult.reason === "service_unavailable"
+          ? "Verifikasi keamanan sedang tidak tersedia. Silakan coba beberapa saat lagi."
+          : "Verifikasi keamanan gagal. Silakan segarkan halaman dan coba kembali.";
+
+    console.warn(
+      JSON.stringify({
+        log_type: "[TURNSTILE GUARD]",
+        turnstilePresent: !!turnstileToken,
+        verificationSuccess: false,
+        verificationErrorCategory: turnstileResult.reason,
+      })
+    );
+
+    return NextResponse.json(
+      { success: false, message },
+      { status: turnstileResult.reason === "service_unavailable" ? 503 : 400 }
+    );
+  }
+
+  // ── 3. IP Rate Limiting ────────────────────────────────────────────────────
+  const rateLimitResult = await checkAduanRateLimit(request);
+
+  if (!rateLimitResult.allowed) {
+    if (rateLimitResult.reason === "service_unavailable") {
+      console.warn(JSON.stringify({ log_type: "[RATE LIMIT GUARD]", event: "service_unavailable" }));
+      return NextResponse.json(
+        { success: false, message: "Layanan pengiriman laporan sedang mengalami gangguan sementara. Silakan coba kembali beberapa saat lagi." },
+        { status: 503 }
+      );
+    }
+
+    // rate_limited
+    const headers: Record<string, string> = {
+      "Retry-After": String(rateLimitResult.retryAfter),
+      "X-RateLimit-Limit": String(rateLimitResult.limit),
+      "X-RateLimit-Remaining": "0",
+      "X-RateLimit-Reset": String(Math.floor(rateLimitResult.reset / 1000)),
+    };
+    return NextResponse.json(
+      { success: false, message: "Terlalu banyak laporan dikirim dari jaringan Anda dalam waktu singkat. Silakan tunggu beberapa menit sebelum mengirim laporan kembali." },
+      { status: 429, headers }
+    );
+  }
+
+  // ── 4. Extract & validate text fields ──────────────────────────────────────
   const name = (formData.get("name") as string | null)?.trim();
   const email = (formData.get("email") as string | null)?.trim();
   const title = (formData.get("title") as string | null)?.trim();

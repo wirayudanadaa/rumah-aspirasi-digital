@@ -23,6 +23,8 @@ import {
   Paperclip,
   ExternalLink,
   Download,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -50,12 +52,57 @@ interface AduanAttachment {
   created_at: string;
 }
 
+type FeedbackState =
+  | { type: "idle" }
+  | { type: "success"; message: string }
+  | { type: "error"; message: string };
+
 function formatBytes(bytes: number) {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+// ─── Inline Feedback Banner ───────────────────────────────────────────────────
+
+function FeedbackBanner({
+  feedback,
+  onDismiss,
+}: {
+  feedback: FeedbackState;
+  onDismiss: () => void;
+}) {
+  if (feedback.type === "idle") return null;
+
+  const isSuccess = feedback.type === "success";
+
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-sm font-medium ${
+        isSuccess
+          ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+          : "bg-red-50 border-red-300 text-red-800"
+      }`}
+    >
+      {isSuccess ? (
+        <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+      ) : (
+        <XCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-600" aria-hidden="true" />
+      )}
+      <span className="flex-1">{feedback.message}</span>
+      <button
+        onClick={onDismiss}
+        className="shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity ml-2"
+        aria-label="Tutup pesan"
+      >
+        ×
+      </button>
+    </div>
+  );
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -69,9 +116,18 @@ function StatusBadge({ status }: { status: string }) {
     DITOLAK: "bg-red-100 text-red-800 border-red-300",
   };
   const cls = map[status] ?? "bg-slate-100 text-slate-700 border-slate-300";
+
+  const labelMap: Record<string, string> = {
+    PENDING: "PENDING",
+    VERIFIKASI: "VERIFIKASI",
+    PROSES: "DIPROSES",
+    SELESAI: "SELESAI",
+    DITOLAK: "DITOLAK",
+  };
+
   return (
     <span className={`${cls} px-2 py-0.5 rounded-full text-[11px] font-extrabold border`}>
-      {status}
+      {labelMap[status] ?? status}
     </span>
   );
 }
@@ -166,12 +222,10 @@ function TimelineEntry({ entry, isLast }: { entry: AduanHistory; isLast: boolean
       </div>
 
       {/* Content */}
-      <div className={`pb-5 flex-1 min-w-0 ${isLast ? "" : ""}`}>
+      <div className="pb-5 flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-1">
           <span className="text-sm font-bold text-slate-800">{title}</span>
-          <span className="text-[10px] font-medium text-slate-400 shrink-0">
-            {actor}
-          </span>
+          <span className="text-[10px] font-medium text-slate-400 shrink-0">{actor}</span>
         </div>
         <p className="text-[10px] text-slate-400 mb-2">
           {format(new Date(entry.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
@@ -193,7 +247,11 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<AduanStatus>("PENDING");
   const [replyContent, setReplyContent] = useState("");
-  const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
+
+  // Feedback replaces native alert()
+  const [saveFeedback, setSaveFeedback] = useState<FeedbackState>({ type: "idle" });
+  const [attachmentFeedback, setAttachmentFeedback] = useState<FeedbackState>({ type: "idle" });
 
   const [history, setHistory] = useState<AduanHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -234,7 +292,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       console.log("[ATTACHMENT DEBUG]", {
         routeId: id,
         hasUser: Boolean(user),
-        userId: user?.id ?? null
+        userId: user?.id ?? null,
       });
 
       if (!user) {
@@ -249,7 +307,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         .order("created_at", { ascending: false });
 
       if (attErr) throw attErr;
-      
+
       console.log("[ATTACHMENT DEBUG]", { attachmentCount: data?.length ?? 0 });
       setAttachments((data as AduanAttachment[]) ?? []);
     } catch (err: unknown) {
@@ -283,7 +341,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       } catch (error: unknown) {
         console.error("Error fetching aduan:", error);
         if (isMounted) {
-          setError("Data aduan tidak ditemukan.");
+          setPageError("Data aduan tidak ditemukan.");
           setLoading(false);
         }
       }
@@ -300,7 +358,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   // Fetch history separately so setState calls don't cascade inside the aduan effect
   useEffect(() => {
     void (async () => {
-      await fetchHistory(); 
+      await fetchHistory();
       await fetchAttachments();
     })();
   }, [fetchHistory, fetchAttachments]);
@@ -308,21 +366,23 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleViewAttachment = async (path: string, download: boolean = false) => {
+    setAttachmentFeedback({ type: "idle" });
     try {
       const { data, error } = await supabase.storage
         .from("attachments")
-        .createSignedUrl(path, 60, {
-          download
-        });
+        .createSignedUrl(path, 60, { download });
 
       if (error) throw error;
-      
+
       if (data?.signedUrl) {
         window.open(data.signedUrl, "_blank");
       }
     } catch (err) {
       console.error("[SIGNED URL ERROR]", err);
-      alert("Gagal membuka lampiran.");
+      setAttachmentFeedback({
+        type: "error",
+        message: "Gagal membuka lampiran. Silakan coba lagi.",
+      });
     }
   };
 
@@ -330,6 +390,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const handleSaveTindakLanjut = async () => {
     if (!aduan) return;
     setSaving(true);
+    setSaveFeedback({ type: "idle" });
 
     // Normalize response: empty string → NULL
     const normalizedResponse = replyContent.trim() === "" ? null : replyContent.trim();
@@ -353,7 +414,10 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       // Refresh history timeline without full page reload
       await fetchHistory();
 
-      alert("Status & Balasan Resmi berhasil diperbarui!");
+      setSaveFeedback({
+        type: "success",
+        message: "Status dan tanggapan resmi berhasil diperbarui.",
+      });
     } catch (err: unknown) {
       const error = err as Record<string, string>;
       console.error("[ADMIN UPDATE ERROR]", {
@@ -362,7 +426,10 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         details: error?.details,
         hint: error?.hint,
       });
-      alert(`Gagal memperbarui data: ${error?.message || "Error tidak diketahui"}`);
+      setSaveFeedback({
+        type: "error",
+        message: "Gagal memperbarui data laporan. Periksa koneksi Anda dan coba lagi.",
+      });
     } finally {
       setSaving(false);
     }
@@ -385,10 +452,10 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     );
   }
 
-  if (error || !aduan) {
+  if (pageError || !aduan) {
     return (
       <div className="bg-red-50 text-red-700 p-6 rounded-2xl border border-red-200 text-center space-y-4">
-        <p className="font-bold">{error || "Aduan tidak ditemukan."}</p>
+        <p className="font-bold">{pageError || "Aduan tidak ditemukan."}</p>
         <Link href="/admin" className="text-sm font-bold text-[#1565C0] hover:underline">
           Kembali ke Dashboard Admin
         </Link>
@@ -403,155 +470,262 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         Kembali ke Daftar Aduan
       </Link>
 
+      {/* ── Page-level layout ─────────────────────────────────────────────── */}
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Kolom Kiri: Detail Laporan, Form Balasan, Timeline */}
+
+        {/* ──────────────────────────────────────────────────────────────────
+            LEFT COLUMN: Report content, metadata, reporter info, attachments
+            ────────────────────────────────────────────────────────────────── */}
         <div className="md:col-span-2 space-y-6">
-          {/* Card Laporan */}
-          <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-8 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
+
+          {/* ── Card: Report Detail ─────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 p-6 space-y-5">
+            {/* Header row: classification + ticket + date */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 flex-wrap">
                 {getClassificationBadge(aduan.classification)}
                 <span className="font-mono font-bold text-[#0D47A1] text-xs bg-[#E3F2FD] px-3 py-1 rounded-full border border-[#90CAF9]/40">
                   #{aduan.ticket_number}
                 </span>
+                <StatusBadge status={aduan.status} />
               </div>
               <div className="text-xs text-slate-400 font-medium">
                 {format(new Date(aduan.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
               </div>
             </div>
 
+            {/* Title + description */}
             <div>
-              <h1 className="text-2xl font-black text-slate-900 mb-3">{aduan.title}</h1>
-              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed bg-[#E3F2FD]/30 p-6 rounded-2xl border border-[#90CAF9]/40 text-sm">
+              <h1 className="text-xl font-black text-slate-900 mb-3">{aduan.title}</h1>
+              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed bg-[#E3F2FD]/30 p-5 rounded-2xl border border-[#90CAF9]/40 text-sm">
                 {aduan.description}
               </p>
             </div>
 
-            {/* Metadata Fields Grid */}
-            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
+            {/* Metadata grid */}
+            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
               <div>
                 <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
                   <Calendar className="w-3.5 h-3.5 text-[#1565C0]" /> Tanggal Kejadian
                 </span>
                 <span className="font-semibold text-slate-900">
-                  {aduan.date_of_incident ? format(new Date(aduan.date_of_incident), "dd MMM yyyy", { locale: idLocale }) : "-"}
+                  {aduan.date_of_incident
+                    ? format(new Date(aduan.date_of_incident), "dd MMM yyyy", { locale: idLocale })
+                    : "–"}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
                   <MapPin className="w-3.5 h-3.5 text-[#1565C0]" /> Lokasi Kejadian
                 </span>
-                <span className="font-semibold text-slate-900">{aduan.location || "-"}</span>
+                <span className="font-semibold text-slate-900">{aduan.location || "–"}</span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
                   <Building2 className="w-3.5 h-3.5 text-[#1565C0]" /> Instansi Tujuan
                 </span>
-                <span className="font-semibold text-slate-900">{aduan.institution || "-"}</span>
+                <span className="font-semibold text-slate-900">{aduan.institution || "–"}</span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium flex items-center gap-1 mb-1">
                   <Tag className="w-3.5 h-3.5 text-[#1565C0]" /> Kategori
                 </span>
-                <span className="font-semibold text-slate-900">{aduan.category || "-"}</span>
+                <span className="font-semibold text-slate-900">{aduan.category || "–"}</span>
               </div>
             </div>
+          </div>
 
-            {/* Lampiran */}
-            <div className="pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2 pb-4">
-                <Paperclip className="w-5 h-5 text-[#1565C0]" />
-                <h3 className="font-extrabold text-[#0D47A1] text-lg">Lampiran</h3>
+          {/* ── Card: Informasi Pelapor ─────────────────────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 p-6 space-y-4">
+            <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider pb-3 border-b border-slate-100">
+              Informasi Pelapor
+            </h3>
+
+            {aduan.is_anonymous ? (
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-semibold">
+                <UserX className="w-5 h-5 shrink-0" />
+                <span>Pelapor memilih opsi <strong>ANONIM</strong>. Identitas disembunyikan.</span>
               </div>
-              
-              {attachmentsLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 py-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-[#1565C0]" />
-                  <span className="text-sm">Memuat lampiran...</span>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#E3F2FD] flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-[#1565C0]" />
+                  </div>
+                  <div>
+                    <div className="text-slate-400 font-medium mb-0.5">Nama Pelapor</div>
+                    <div className="font-bold text-slate-900 text-sm">{aduan.name}</div>
+                  </div>
                 </div>
-              ) : attachmentsError ? (
-                <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl font-medium">
-                  {attachmentsError}
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#E3F2FD] flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-[#1565C0]" />
+                  </div>
+                  <div>
+                    <div className="text-slate-400 font-medium mb-0.5">Email</div>
+                    <div className="font-bold text-slate-900">{aduan.email}</div>
+                  </div>
                 </div>
-              ) : !attachments || attachments.length === 0 ? (
-                <p className="text-slate-400 text-sm italic">Tidak ada lampiran.</p>
-              ) : (
-                <div className="space-y-3">
-                  {attachments.map((att) => (
-                    <div key={att.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="font-bold text-sm text-slate-900 truncate">{att.file_name}</span>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500 mt-1">
-                          <span>{formatBytes(att.file_size)}</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span>{format(new Date(att.created_at), "dd MMM yyyy, HH:mm")}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleViewAttachment(att.storage_path, false)}
-                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-[#E3F2FD] hover:text-[#1565C0] hover:border-[#90CAF9] text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          Lihat
-                        </button>
-                        <button
-                          onClick={() => handleViewAttachment(att.storage_path, true)}
-                          className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Unduh
-                        </button>
+              </div>
+            )}
+
+            {aduan.is_secret && (
+              <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl flex items-center gap-2 text-slate-700 text-xs font-semibold">
+                <Lock className="w-4 h-4 text-slate-500" />
+                <span>Laporan ini bersifat <strong>RAHASIA</strong>.</span>
+              </div>
+            )}
+          </div>
+
+          {/* ── Card: Lampiran ──────────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 p-6 space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <Paperclip className="w-4 h-4 text-[#1565C0]" />
+              <h3 className="font-bold text-[#0D47A1] text-sm uppercase tracking-wider">Lampiran</h3>
+            </div>
+
+            {/* Attachment-level error feedback */}
+            {attachmentFeedback.type !== "idle" && (
+              <FeedbackBanner
+                feedback={attachmentFeedback}
+                onDismiss={() => setAttachmentFeedback({ type: "idle" })}
+              />
+            )}
+
+            {attachmentsLoading ? (
+              <div className="flex items-center gap-3 text-slate-500 py-2">
+                <Loader2 className="w-5 h-5 animate-spin text-[#1565C0]" />
+                <span className="text-sm">Memuat lampiran...</span>
+              </div>
+            ) : attachmentsError ? (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl font-medium">
+                {attachmentsError}
+              </div>
+            ) : !attachments || attachments.length === 0 ? (
+              <p className="text-slate-400 text-sm italic">Tidak ada lampiran.</p>
+            ) : (
+              <div className="space-y-3">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200 p-4 rounded-xl"
+                  >
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="font-bold text-sm text-slate-900 truncate">{att.file_name}</span>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+                        <span>{formatBytes(att.file_size)}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span>{format(new Date(att.created_at), "dd MMM yyyy, HH:mm")}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleViewAttachment(att.storage_path, false)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-[#E3F2FD] hover:text-[#1565C0] hover:border-[#90CAF9] text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Lihat
+                      </button>
+                      <button
+                        onClick={() => handleViewAttachment(att.storage_path, true)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Unduh
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ──────────────────────────────────────────────────────────────────
+            RIGHT COLUMN: Unified workflow card + Audit timeline
+            ────────────────────────────────────────────────────────────────── */}
+        <div className="space-y-6">
+
+          {/* ── Card: Tindak Lanjut Laporan (Unified Workflow) ─────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#1565C0]/30 p-6 space-y-5">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <MessageSquare className="w-4 h-4 text-[#1565C0]" />
+              <h3 className="font-bold text-[#0D47A1] text-sm uppercase tracking-wider">Tindak Lanjut Laporan</h3>
             </div>
+
+            {/* Current status display */}
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Status Saat Ini</div>
+              <StatusBadge status={aduan.status} />
+            </div>
+
+            {/* New status selector */}
+            <div>
+              <label
+                htmlFor="status-select"
+                className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5"
+              >
+                Perbarui Status
+              </label>
+              <select
+                id="status-select"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as AduanStatus)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1565C0]"
+              >
+                <option value="PENDING">PENDING — Baru Masuk</option>
+                <option value="VERIFIKASI">VERIFIKASI — Sedang Diverifikasi</option>
+                <option value="PROSES">PROSES — Sedang Ditindaklanjuti</option>
+                <option value="SELESAI">SELESAI — Laporan Ditutup</option>
+                <option value="DITOLAK">DITOLAK — Tidak Valid</option>
+              </select>
+            </div>
+
+            {/* Official response textarea */}
+            <div>
+              <label
+                htmlFor="response-textarea"
+                className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5"
+              >
+                Tanggapan Resmi Instansi
+              </label>
+              <textarea
+                id="response-textarea"
+                rows={5}
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Ketik tanggapan atau perkembangan penanganan laporan..."
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm resize-none"
+              />
+            </div>
+
+            {/* Inline save feedback */}
+            {saveFeedback.type !== "idle" && (
+              <FeedbackBanner
+                feedback={saveFeedback}
+                onDismiss={() => setSaveFeedback({ type: "idle" })}
+              />
+            )}
+
+            {/* Submit action */}
+            <button
+              onClick={handleSaveTindakLanjut}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold px-6 py-3 rounded-xl shadow-sm transition-colors text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {saving ? "Menyimpan..." : "Simpan & Perbarui"}
+            </button>
           </div>
 
-          {/* Form Balasan / Tindak Lanjut Resmi */}
-          <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-8 space-y-6">
-            <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
-              <MessageSquare className="w-5 h-5 text-[#1565C0]" />
-              <h3 className="font-extrabold text-[#0D47A1] text-lg">Balasan & Tanggapan Resmi Instansi</h3>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                  Tulis Tanggapan Resmi
-                </label>
-                <textarea
-                  rows={5}
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Ketik balasan resmi instansi atau perkembangan penanganan laporan..."
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSaveTindakLanjut}
-                  disabled={saving}
-                  className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition-all flex items-center gap-2 text-sm uppercase tracking-wider disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Simpan & Kirim Tanggapan
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Riwayat Penanganan (Timeline) */}
-          <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-8">
-            <div className="flex items-center gap-2 pb-4 mb-6 border-b border-slate-100">
-              <History className="w-5 h-5 text-[#1565C0]" />
-              <h3 className="font-extrabold text-[#0D47A1] text-lg">Riwayat Penanganan</h3>
+          {/* ── Card: Riwayat Penanganan (Audit Trail) ─────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 p-6">
+            <div className="flex items-center gap-2 pb-3 mb-5 border-b border-slate-100">
+              <History className="w-4 h-4 text-[#1565C0]" />
+              <h3 className="font-bold text-[#0D47A1] text-sm uppercase tracking-wider">Riwayat Penanganan</h3>
             </div>
 
             {historyLoading ? (
@@ -560,7 +734,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                 <span className="text-sm">Memuat riwayat...</span>
               </div>
             ) : historyError ? (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-2xl font-medium">
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl font-medium">
                 {historyError}
               </div>
             ) : history.length === 0 ? (
@@ -577,74 +751,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
               </div>
             )}
           </div>
-        </div>
 
-        {/* Kolom Kanan: Status & Info Pelapor */}
-        <div className="space-y-6">
-          {/* Card Status Update */}
-          <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-6 space-y-4">
-            <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider pb-3 border-b border-slate-100">
-              Update Status Laporan
-            </h3>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-2">Pilih Status Baru</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as AduanStatus)}
-                className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1565C0]"
-              >
-                <option value="PENDING">PENDING (Baru Masuk)</option>
-                <option value="VERIFIKASI">VERIFIKASI (Sedang Diverifikasi)</option>
-                <option value="PROSES">PROSES (Sedang Ditindaklanjuti)</option>
-                <option value="SELESAI">SELESAI (Laporan Ditutup)</option>
-                <option value="DITOLAK">DITOLAK (Dibatalkan/Tidak Valid)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Card Info Pelapor */}
-          <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-6 space-y-4">
-            <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider pb-3 border-b border-slate-100">
-              Informasi Pelapor
-            </h3>
-
-            {aduan.is_anonymous ? (
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-800 text-xs font-semibold">
-                <UserX className="w-5 h-5 shrink-0" />
-                <span>Pelapor memilih opsi **ANONIM**. Identitas disembunyikan.</span>
-              </div>
-            ) : (
-              <div className="space-y-4 text-xs">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#E3F2FD] flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-[#1565C0]" />
-                  </div>
-                  <div>
-                    <div className="text-slate-400 font-medium mb-0.5">Nama Pelapor</div>
-                    <div className="font-bold text-slate-900 text-sm">{aduan.name}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#E3F2FD] flex items-center justify-center shrink-0">
-                    <Mail className="w-4 h-4 text-[#1565C0]" />
-                  </div>
-                  <div>
-                    <div className="text-slate-400 font-medium mb-0.5">Email</div>
-                    <div className="font-bold text-slate-900">{aduan.email}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {aduan.is_secret && (
-              <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl flex items-center gap-2 text-slate-700 text-xs font-semibold">
-                <Lock className="w-4 h-4 text-slate-500" />
-                <span>Laporan ini bersifat **RAHASIA**.</span>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>

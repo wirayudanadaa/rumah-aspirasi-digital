@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Loader2, Search, FileText, UserX, Building2 } from "lucide-react";
+import { Loader2, Search, FileText, UserX, Building2, AlertCircle } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -87,6 +87,9 @@ export default function AdminDashboard() {
     ditolak: 0,
   });
   const [statsError, setStatsError] = useState(false);
+
+  // Derived: is search debouncing?
+  const isSearchDebouncing = searchTerm !== debouncedSearchTerm;
 
   // Fetch global statistics once on mount
   useEffect(() => {
@@ -207,7 +210,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-black text-[#0D47A1]">Dashboard Pengelolaan Aspirasi & Aduan</h2>
+        <h2 className="text-2xl font-black text-[#0D47A1]">Dashboard Pengelolaan Aspirasi &amp; Aduan</h2>
         <p className="text-slate-500 text-sm mt-1">Sistem Pengawasan dan Penanganan Rumah Aspirasi Digital</p>
       </div>
 
@@ -218,50 +221,80 @@ export default function AdminDashboard() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Classification Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-[#90CAF9]/60 shadow-sm">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Laporan</div>
-              <div className="text-3xl font-black text-[#0D47A1]">{globalStats.total}</div>
+          {/* ── Section 1: Volume / Overview ─────────────────────────────── */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Ringkasan Volume &amp; Klasifikasi</span>
+              <div className="flex-1 h-px bg-slate-200" />
             </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Total — hero card */}
+              <div className="bg-white p-4 rounded-2xl border border-[#90CAF9]/60 shadow-sm flex flex-col justify-between md:col-span-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Total Laporan</div>
+                <div className="text-3xl font-black text-[#0D47A1] leading-none">{globalStats.total}</div>
+                <div className="text-[10px] text-slate-400 mt-1">seluruh jenis</div>
+              </div>
 
-            <div className="bg-[#E3F2FD] p-5 rounded-2xl border border-[#90CAF9] shadow-sm">
-              <div className="text-xs font-bold text-[#1565C0] uppercase tracking-wider mb-1">Pengaduan</div>
-              <div className="text-3xl font-black text-[#1565C0]">{globalStats.pengaduan}</div>
-            </div>
+              <div className="bg-[#E3F2FD] p-4 rounded-2xl border border-[#90CAF9] shadow-sm flex flex-col justify-between">
+                <div className="text-[10px] font-bold text-[#1565C0] uppercase tracking-widest mb-2">Pengaduan</div>
+                <div className="text-2xl font-black text-[#1565C0] leading-none">{globalStats.pengaduan}</div>
+              </div>
 
-            <div className="bg-cyan-50 p-5 rounded-2xl border border-cyan-200 shadow-sm">
-              <div className="text-xs font-bold text-cyan-800 uppercase tracking-wider mb-1">Aspirasi</div>
-              <div className="text-3xl font-black text-cyan-800">{globalStats.aspirasi}</div>
-            </div>
+              <div className="bg-cyan-50 p-4 rounded-2xl border border-cyan-200 shadow-sm flex flex-col justify-between">
+                <div className="text-[10px] font-bold text-cyan-800 uppercase tracking-widest mb-2">Aspirasi</div>
+                <div className="text-2xl font-black text-cyan-800 leading-none">{globalStats.aspirasi}</div>
+              </div>
 
-            <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 shadow-sm">
-              <div className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-1">Permintaan Info</div>
-              <div className="text-3xl font-black text-indigo-800">{globalStats.permintaan_informasi}</div>
+              <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-200 shadow-sm flex flex-col justify-between">
+                <div className="text-[10px] font-bold text-indigo-800 uppercase tracking-widest mb-2">Permintaan Info</div>
+                <div className="text-2xl font-black text-indigo-800 leading-none">{globalStats.permintaan_informasi}</div>
+              </div>
             </div>
           </div>
 
-          {/* Workflow Status Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 shadow-sm">
-              <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1">Pending</div>
-              <div className="text-2xl font-black text-amber-900">{globalStats.pending}</div>
+          {/* ── Section 2: Action Required & Workflow ────────────────────── */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status Penanganan &amp; Alur Kerja</span>
+              <div className="flex-1 h-px bg-slate-200" />
             </div>
-            <div className="bg-purple-50 p-4 rounded-2xl border border-purple-200 shadow-sm">
-              <div className="text-[10px] font-bold text-purple-800 uppercase tracking-wider mb-1">Verifikasi</div>
-              <div className="text-2xl font-black text-purple-900">{globalStats.verifikasi}</div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200 shadow-sm">
-              <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider mb-1">Proses</div>
-              <div className="text-2xl font-black text-blue-900">{globalStats.proses}</div>
-            </div>
-            <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 shadow-sm">
-              <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1">Selesai</div>
-              <div className="text-2xl font-black text-emerald-900">{globalStats.selesai}</div>
-            </div>
-            <div className="bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm">
-              <div className="text-[10px] font-bold text-red-800 uppercase tracking-wider mb-1">Ditolak</div>
-              <div className="text-2xl font-black text-red-900">{globalStats.ditolak}</div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {/* Action-required: elevated visual weight */}
+              <div className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Pending</span>
+                </div>
+                <div className="text-2xl font-black text-amber-900 leading-none">{globalStats.pending}</div>
+                <div className="text-[10px] text-amber-600 mt-1">perlu verifikasi</div>
+              </div>
+
+              <div className="bg-purple-50 p-4 rounded-2xl border-2 border-purple-300 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-widest">Verifikasi</span>
+                </div>
+                <div className="text-2xl font-black text-purple-900 leading-none">{globalStats.verifikasi}</div>
+                <div className="text-[10px] text-purple-600 mt-1">perlu penugasan</div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200 shadow-sm flex flex-col justify-between">
+                <div className="text-[10px] font-bold text-blue-800 uppercase tracking-widest mb-2">Diproses</div>
+                <div className="text-2xl font-black text-blue-900 leading-none">{globalStats.proses}</div>
+                <div className="text-[10px] text-blue-500 mt-1">sedang ditindaklanjuti</div>
+              </div>
+
+              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 shadow-sm flex flex-col justify-between">
+                <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mb-2">Selesai</div>
+                <div className="text-2xl font-black text-emerald-900 leading-none">{globalStats.selesai}</div>
+                <div className="text-[10px] text-emerald-500 mt-1">laporan ditutup</div>
+              </div>
+
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm flex flex-col justify-between">
+                <div className="text-[10px] font-bold text-red-800 uppercase tracking-widest mb-2">Ditolak</div>
+                <div className="text-2xl font-black text-red-900 leading-none">{globalStats.ditolak}</div>
+                <div className="text-[10px] text-red-500 mt-1">tidak valid</div>
+              </div>
             </div>
           </div>
         </div>
@@ -269,6 +302,7 @@ export default function AdminDashboard() {
 
       {/* Filter & Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-[#90CAF9]/60 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Search input with debounce indicator */}
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -276,13 +310,20 @@ export default function AdminDashboard() {
             placeholder="Cari tiket, nama, judul, instansi..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1565C0] w-full text-sm font-medium text-black"
+            aria-label="Cari laporan"
+            className="pl-10 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1565C0] w-full text-sm font-medium text-black"
           />
+          {/* Subtle debounce indicator: only when actively typing/waiting */}
+          {isSearchDebouncing && (
+            <Loader2 className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#1565C0] animate-spin" aria-hidden="true" />
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Classification Filter */}
+          <label htmlFor="classification-filter" className="sr-only">Filter Klasifikasi</label>
           <select
+            id="classification-filter"
             value={classificationFilter}
             onChange={(e) => { setClassificationFilter(e.target.value); setCurrentPage(1); }}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1565C0]"
@@ -294,7 +335,9 @@ export default function AdminDashboard() {
           </select>
 
           {/* Status Filter */}
+          <label htmlFor="status-filter" className="sr-only">Filter Status</label>
           <select
+            id="status-filter"
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1565C0]"
@@ -312,18 +355,18 @@ export default function AdminDashboard() {
       {/* Main Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 overflow-hidden">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+          <div className="flex flex-col items-center justify-center py-16 text-slate-500">
             <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#1565C0]" />
             <p className="font-medium text-sm">Memuat data aduan...</p>
           </div>
         ) : fetchError ? (
-          <div className="flex flex-col items-center justify-center py-20 text-red-600">
+          <div className="flex flex-col items-center justify-center py-16 text-red-600">
             <FileText className="w-10 h-10 text-red-300 mb-3" />
             <p className="font-bold">{fetchError}</p>
             <p className="text-xs text-slate-500 mt-1">Periksa console browser untuk detail error.</p>
           </div>
         ) : aduans.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+          <div className="flex flex-col items-center justify-center py-16 text-slate-500">
             <FileText className="w-10 h-10 text-slate-300 mb-3" />
             <p className="font-bold text-slate-700">
               {debouncedSearchTerm || classificationFilter !== "ALL" || statusFilter !== "ALL"
@@ -332,37 +375,38 @@ export default function AdminDashboard() {
               }
             </p>
             {(debouncedSearchTerm || classificationFilter !== "ALL" || statusFilter !== "ALL") && (
-              <p className="text-xs">Coba ubah atau hapus kata kunci pencarian dan filter Anda.</p>
+              <p className="text-xs mt-1">Coba ubah atau hapus kata kunci pencarian dan filter Anda.</p>
             )}
           </div>
         ) : (
+          /* Horizontal scroll container — table scrolls inside, page does not overflow */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[700px] text-left border-collapse">
               <thead>
                 <tr className="bg-[#E3F2FD]/50 border-b border-[#90CAF9]/40 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <th className="px-6 py-4">Tiket & Tanggal</th>
-                  <th className="px-6 py-4">Klasifikasi</th>
-                  <th className="px-6 py-4">Pelapor</th>
-                  <th className="px-6 py-4">Judul & Instansi</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Aksi</th>
+                  <th className="px-5 py-3" scope="col">Tiket &amp; Tanggal</th>
+                  <th className="px-5 py-3" scope="col">Klasifikasi</th>
+                  <th className="px-5 py-3" scope="col">Pelapor</th>
+                  <th className="px-5 py-3" scope="col">Judul &amp; Instansi</th>
+                  <th className="px-5 py-3" scope="col">Status</th>
+                  <th className="px-5 py-3 text-right" scope="col">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {aduans.map((aduan) => (
                   <tr key={aduan.id} className="hover:bg-[#E3F2FD]/20 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-mono font-bold text-[#0D47A1]">{aduan.ticket_number}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">
+                    <td className="px-5 py-3">
+                      <div className="font-mono font-bold text-[#0D47A1] text-xs">{aduan.ticket_number}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
                         {format(new Date(aduan.created_at), "dd MMM yyyy, HH:mm", { locale: idLocale })}
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3">
                       {getClassificationBadge(aduan.classification)}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3">
                       <div className="font-semibold text-slate-800 flex items-center gap-1.5">
                         {aduan.is_anonymous ? (
                           <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded text-xs flex items-center gap-1">
@@ -373,27 +417,34 @@ export default function AdminDashboard() {
                         )}
                       </div>
                       {!aduan.is_anonymous && (
-                        <div className="text-xs text-slate-400 mt-0.5">{aduan.email}</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[140px]">{aduan.email}</div>
                       )}
                     </td>
 
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900 line-clamp-1 max-w-xs">{aduan.title}</div>
+                    <td className="px-5 py-3 max-w-0">
+                      {/* max-w-0 on the td allows the inner truncate to work properly */}
+                      <div
+                        className="font-medium text-slate-900 truncate w-full max-w-xs"
+                        title={aduan.title}
+                      >
+                        {aduan.title}
+                      </div>
                       {aduan.institution && (
-                        <div className="text-xs text-[#1565C0] font-semibold mt-0.5 flex items-center gap-1">
-                          <Building2 className="w-3 h-3" /> {aduan.institution}
+                        <div className="text-[11px] text-[#1565C0] font-semibold mt-0.5 flex items-center gap-1 truncate max-w-xs">
+                          <Building2 className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{aduan.institution}</span>
                         </div>
                       )}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3">
                       {getStatusBadge(aduan.status)}
                     </td>
 
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-5 py-3 text-right">
                       <Link
                         href={`/admin/aduan/${aduan.id}`}
-                        className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold text-white bg-[#1565C0] rounded-xl hover:bg-[#0D47A1] transition-colors shadow-sm"
+                        className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-bold text-white bg-[#1565C0] rounded-xl hover:bg-[#0D47A1] transition-colors shadow-sm whitespace-nowrap"
                       >
                         Tindak Lanjut
                       </Link>
@@ -407,7 +458,7 @@ export default function AdminDashboard() {
         
         {/* Pagination Controls */}
         {!loading && !fetchError && totalCount > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-[#90CAF9]/40 bg-[#E3F2FD]/20">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-[#90CAF9]/40 bg-[#E3F2FD]/20">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1 || loading}
