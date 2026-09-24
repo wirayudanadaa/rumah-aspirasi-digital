@@ -57,6 +57,19 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
+
+    // LAYER 1: Application-level Authorization
+    // Verify that the user is actually an administrator
+    const { data: isAdmin, error: rpcError } = await supabase.rpc('is_admin', {
+      target_user_id: user.id,
+    });
+
+    if (rpcError || !isAdmin) {
+      // User is authenticated but not an admin. Kick them back with an error.
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('error', 'unauthorized');
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
   return response;

@@ -1,81 +1,84 @@
 "use client";
 
-import { useState } from "react";
-
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Lock, Mail, ShieldCheck, AlertCircle } from "lucide-react";
 
-export default function AdminLoginPage() {
-
+function LoginForm() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const unauthorizedFromUrl = searchParams.get("error") === "unauthorized"
+    ? "Akun Anda tidak memiliki hak akses administrator. Hubungi pengelola sistem."
+    : "";
+  const displayError = formError || unauthorizedFromUrl;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
+    setFormError("");
 
     if (!email.trim()) {
-      setError("Email wajib diisi.");
+      setFormError("Email wajib diisi.");
       return;
     }
     if (!password) {
-      setError("Password wajib diisi.");
+      setFormError("Password wajib diisi.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (authError) throw authError;
 
+      // Check if user is actually an admin
+      const { data: isAdmin, error: rpcError } = await supabase.rpc('is_admin', {
+        target_user_id: authData.user.id
+      });
+
+      if (rpcError || !isAdmin) {
+        await supabase.auth.signOut();
+        throw new Error("unauthorized");
+      }
+
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/admin";
     } catch (err: unknown) {
       console.error("Login error:", err);
-      setError("Email atau password salah. Silakan periksa kembali dan coba lagi.");
+      const message = err instanceof Error ? err.message : "";
+      if (message === "unauthorized") {
+        setFormError("Akun Anda tidak memiliki hak akses administrator. Hubungi pengelola sistem.");
+      } else {
+        setFormError("Email atau password salah. Silakan periksa kembali dan coba lagi.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E3F2FD] via-white to-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="bg-white rounded-3xl shadow-lg border border-[#90CAF9]/60 p-8">
+      <h2 className="text-lg font-bold text-slate-800 mb-6">
+        Masuk ke Portal Pengelola
+      </h2>
 
-        {/* Logo / Brand Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1565C0] shadow-lg mb-4">
-            <ShieldCheck className="w-9 h-9 text-white" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-[#0D47A1] tracking-tight">
-            Portal Admin
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Rumah Aspirasi Digital
-          </p>
+      {/* Error Message */}
+      {displayError && (
+        <div className="flex items-start gap-3 text-red-700 bg-red-50 border border-red-100 p-4 rounded-2xl mb-6 text-sm font-medium">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>{displayError}</span>
         </div>
-
-        {/* Login Card */}
-        <div className="bg-white rounded-3xl shadow-lg border border-[#90CAF9]/60 p-8">
-          <h2 className="text-lg font-bold text-slate-800 mb-6">
-            Masuk ke Portal Pengelola
-          </h2>
-
-          {/* Error Message */}
-          {error && (
-            <div className="flex items-start gap-3 text-red-700 bg-red-50 border border-red-100 p-4 rounded-2xl mb-6 text-sm font-medium">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
+      )}
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
 
@@ -144,13 +147,39 @@ export default function AdminLoginPage() {
             </button>
 
           </form>
+    </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#E3F2FD] via-white to-slate-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* Logo / Brand Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1565C0] shadow-lg mb-4">
+            <ShieldCheck className="w-9 h-9 text-white" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-[#0D47A1] tracking-tight">
+            Portal Admin
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Rumah Aspirasi Digital
+          </p>
         </div>
+
+        <Suspense fallback={
+          <div className="bg-white rounded-3xl shadow-lg border border-[#90CAF9]/60 p-8 flex items-center justify-center h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-[#1565C0]" />
+          </div>
+        }>
+          <LoginForm />
+        </Suspense>
 
         {/* Footer note */}
         <p className="text-center text-xs text-slate-400 mt-6">
           Halaman ini hanya diperuntukkan bagi petugas berwenang.
         </p>
-
       </div>
     </div>
   );

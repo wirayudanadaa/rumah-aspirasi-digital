@@ -248,6 +248,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const [status, setStatus] = useState<AduanStatus>("PENDING");
   const [replyContent, setReplyContent] = useState("");
   const [pageError, setPageError] = useState("");
+  const [unauthorized, setUnauthorized] = useState(false);
 
   // Feedback replaces native alert()
   const [saveFeedback, setSaveFeedback] = useState<FeedbackState>({ type: "idle" });
@@ -325,6 +326,28 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     let isMounted = true;
     const fetchAduan = async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          if (isMounted) {
+            setPageError("Sesi tidak ditemukan. Silakan login kembali.");
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Layer 1 authorization check on the client explicitly
+        const { data: isAdmin, error: rpcError } = await supabase.rpc('is_admin', {
+          target_user_id: user.id
+        });
+
+        if (rpcError || !isAdmin) {
+          if (isMounted) {
+            setUnauthorized(true);
+            setLoading(false);
+          }
+          return;
+        }
+
         const { data, error } = await supabase
           .from("aduan")
           .select("*")
@@ -341,7 +364,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       } catch (error: unknown) {
         console.error("Error fetching aduan:", error);
         if (isMounted) {
-          setPageError("Data aduan tidak ditemukan.");
+          setPageError("Data aduan tidak ditemukan atau Anda tidak memiliki akses.");
           setLoading(false);
         }
       }
@@ -444,10 +467,40 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/admin/login";
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
         <Loader2 className="w-8 h-8 animate-spin text-[#1565C0]" />
+      </div>
+    );
+  }
+
+  if (unauthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+        <div className="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-100 max-w-md w-full">
+          <div className="flex justify-center mb-4">
+            <div className="bg-red-100 p-3 rounded-2xl">
+              <UserX className="w-10 h-10 text-red-600" />
+            </div>
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Akses Ditolak</h2>
+          <p className="text-sm text-slate-500 mb-6">
+            Akun Anda tidak memiliki hak akses administrator. Silakan hubungi pengelola sistem untuk mendapatkan izin akses.
+          </p>
+          <button
+            onClick={handleSignOut}
+            className="w-full bg-[#1565C0] hover:bg-[#0D47A1] text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm"
+          >
+            Keluar
+          </button>
+        </div>
       </div>
     );
   }

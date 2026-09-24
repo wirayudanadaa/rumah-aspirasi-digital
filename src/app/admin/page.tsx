@@ -88,8 +88,16 @@ export default function AdminDashboard() {
   });
   const [statsError, setStatsError] = useState(false);
 
+  const [unauthorized, setUnauthorized] = useState(false);
+
   // Derived: is search debouncing?
   const isSearchDebouncing = searchTerm !== debouncedSearchTerm;
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/admin/login";
+  };
 
   // Fetch global statistics once on mount
   useEffect(() => {
@@ -109,7 +117,11 @@ export default function AdminDashboard() {
         const e = err as { code?: string; message?: string; details?: string; hint?: string };
         console.error("[ADMIN STATS DEBUG] fetch error:", { code: e?.code, message: e?.message, details: e?.details, hint: e?.hint });
         if (isMounted) {
-          setStatsError(true);
+          if (e?.code === '42501' || e?.message?.includes('Access denied')) {
+            setUnauthorized(true);
+          } else {
+            setStatsError(true);
+          }
         }
       }
     };
@@ -173,7 +185,11 @@ export default function AdminDashboard() {
         const e = err as { code?: string; message?: string };
         console.error("[ADMIN DASHBOARD DEBUG] fetch error:", { code: e?.code, message: e?.message });
         if (isMounted) {
-          setFetchError("Gagal memuat data laporan. Silakan coba lagi.");
+          if (e?.code === '42501') {
+            setUnauthorized(true);
+          } else {
+            setFetchError("Gagal memuat data laporan. Silakan coba lagi.");
+          }
           setLoading(false);
         }
       }
@@ -206,6 +222,30 @@ export default function AdminDashboard() {
       default: return null;
     }
   };
+
+  if (unauthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+        <div className="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-100 max-w-md w-full">
+          <div className="flex justify-center mb-4">
+            <div className="bg-red-100 p-3 rounded-2xl">
+              <UserX className="w-10 h-10 text-red-600" />
+            </div>
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Akses Ditolak</h2>
+          <p className="text-sm text-slate-500 mb-6">
+            Akun Anda tidak memiliki hak akses administrator. Silakan hubungi pengelola sistem untuk mendapatkan izin akses.
+          </p>
+          <button
+            onClick={handleSignOut}
+            className="w-full bg-[#1565C0] hover:bg-[#0D47A1] text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm"
+          >
+            Keluar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

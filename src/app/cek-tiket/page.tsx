@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { supabase, type AduanPublicTrack } from "@/lib/supabase";
+import { type AduanPublicTrack } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { StatusStepper } from "@/components/StatusStepper";
