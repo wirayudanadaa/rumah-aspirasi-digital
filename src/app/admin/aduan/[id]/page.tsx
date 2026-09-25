@@ -342,7 +342,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
         const { data, error } = await supabase
           .from("aduan")
-          .select("id, ticket_number, classification, status, created_at, updated_at, title, description, date_of_incident, location, institution, category, is_anonymous, name, email, phone, is_secret, response")
+          .select("id, ticket_number, classification, status, created_at, updated_at, title, description, date_of_incident, location, institution, category, is_anonymous, name, email, is_secret, response")
           .eq("id", id)
           .single();
 
