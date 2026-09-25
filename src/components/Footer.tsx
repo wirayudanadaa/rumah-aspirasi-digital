@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Home, ShieldCheck } from "lucide-react";
 

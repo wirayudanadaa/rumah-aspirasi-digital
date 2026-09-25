@@ -54,7 +54,7 @@ function LoginForm() {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/admin";
     } catch (err: unknown) {
-      console.error("Login error:", err);
+      console.error("Login error");
       const message = err instanceof Error ? err.message : "";
       if (message === "unauthorized") {
         setFormError("Akun Anda tidak memiliki hak akses administrator. Hubungi pengelola sistem.");

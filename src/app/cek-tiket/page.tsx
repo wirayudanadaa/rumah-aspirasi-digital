@@ -6,9 +6,15 @@ import { type AduanPublicTrack } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { StatusStepper } from "@/components/StatusStepper";
-import { Search, Loader2, AlertCircle, MessageCircle } from "lucide-react";
-import { format } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
+import { Search, Loader2, AlertCircle, MessageCircle, SearchX, AlertTriangle, RefreshCw, Clock } from "lucide-react";
+import { formatSafeDate } from "@/lib/date";
+import { parseSafeJsonResponse } from "@/lib/http";
+
+interface TrackingErrorState {
+  type: "not_found" | "server_error" | "rate_limit" | "validation";
+  title: string;
+  message: string;
+}
 
 function TrackingContent() {
   const searchParams = useSearchParams();
@@ -20,7 +26,7 @@ function TrackingContent() {
 
   const [loading, setLoading] = useState(false);
   const [aduan, setAduan] = useState<AduanPublicTrack | null>(null);
-  const [error, setError] = useState("");
+  const [errorState, setErrorState] = useState<TrackingErrorState | null>(null);
 
   // Render-phase state sync: perfectly safe React pattern to avoid setState-in-effect
   if (ticketParam !== prevTicketParam) {
@@ -34,7 +40,7 @@ function TrackingContent() {
     if (!cleanTicket) return;
 
     setLoading(true);
-    setError("");
+    setErrorState(null);
     setAduan(null);
 
     try {
@@ -43,14 +49,60 @@ function TrackingContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticket: cleanTicket }),
       });
-      const json = await res.json();
+
+      const { data: json, isJson } = await parseSafeJsonResponse<{
+        success?: boolean;
+        data?: AduanPublicTrack;
+        message?: string;
+        code?: string;
+      }>(res);
+
       if (!res.ok) {
-        throw new Error(json.message || "Tiket tidak ditemukan.");
+        if (res.status === 404 || json?.code === "NOT_FOUND") {
+          setErrorState({
+            type: "not_found",
+            title: "Nomor Tiket Tidak Ditemukan",
+            message: json?.message || "Nomor tiket tidak ditemukan. Silakan periksa kembali kode Anda dan pastikan tidak ada kesalahan ketik atau spasi ekstra.",
+          });
+        } else if (res.status === 429 || json?.code === "RATE_LIMITED") {
+          setErrorState({
+            type: "rate_limit",
+            title: "Batas Pengecekan Tercapai",
+            message: json?.message || "Batas frekuensi pengecekan tiket telah tercapai. Silakan coba kembali beberapa saat lagi.",
+          });
+        } else if (res.status === 400 || json?.code === "BAD_REQUEST") {
+          setErrorState({
+            type: "validation",
+            title: "Format Tiket Tidak Sesuai",
+            message: json?.message || "Format nomor tiket tidak valid. Contoh format yang benar: TKT-123456-ABCD.",
+          });
+        } else {
+          // 500, 502, 503, non-JSON HTML, or empty error
+          setErrorState({
+            type: "server_error",
+            title: "Gangguan Sistem Sementara",
+            message: isJson && json?.message ? json.message : "Sistem pelacakan sedang mengalami kendala internal. Data laporan Anda tetap aman. Silakan coba beberapa saat lagi.",
+          });
+        }
+        return;
       }
-      setAduan(json.data as AduanPublicTrack);
+
+      if (json?.data) {
+        setAduan(json.data as AduanPublicTrack);
+      } else {
+        setErrorState({
+          type: "not_found",
+          title: "Nomor Tiket Tidak Ditemukan",
+          message: "Data laporan untuk nomor tiket tersebut tidak tersedia.",
+        });
+      }
     } catch (err: unknown) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Tiket tidak ditemukan. Silakan periksa kembali kode Anda, pastikan tidak ada kesalahan ketik atau spasi ekstra, lalu coba lagi.");
+      console.error("[Cek Tiket Network Error]:", err);
+      setErrorState({
+        type: "server_error",
+        title: "Koneksi Terputus",
+        message: "Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan coba beberapa saat lagi.",
+      });
     } finally {
       setLoading(false);
     }
@@ -100,7 +152,11 @@ function TrackingContent() {
             <input
               type="text"
               value={ticket}
-              onChange={(e) => setTicket(e.target.value.toUpperCase().trimStart())}
+              maxLength={50}
+              onChange={(e) => {
+                setTicket(e.target.value.toUpperCase().trimStart());
+                if (errorState) setErrorState(null);
+              }}
               placeholder="Contoh: TKT-123456-ABCD"
               className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] text-black font-semibold text-sm"
               required
@@ -115,10 +171,53 @@ function TrackingContent() {
           </button>
         </form>
 
-        {error && (
-          <div className="flex items-center gap-3 text-red-700 bg-red-50 p-4 rounded-2xl border border-red-100 text-sm font-medium text-left">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            {error}
+        {errorState && (
+          <div
+            className={`p-5 rounded-2xl border text-sm text-left transition-all ${
+              errorState.type === "not_found"
+                ? "bg-amber-50/80 border-amber-200 text-amber-900"
+                : errorState.type === "rate_limit"
+                ? "bg-orange-50/80 border-orange-200 text-orange-900"
+                : errorState.type === "validation"
+                ? "bg-blue-50/80 border-blue-200 text-blue-900"
+                : "bg-red-50/80 border-red-200 text-red-900"
+            }`}
+            role="alert"
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="shrink-0 mt-0.5">
+                {errorState.type === "not_found" ? (
+                  <SearchX className="w-5 h-5 text-amber-600" aria-hidden="true" />
+                ) : errorState.type === "rate_limit" ? (
+                  <Clock className="w-5 h-5 text-orange-600" aria-hidden="true" />
+                ) : errorState.type === "validation" ? (
+                  <AlertCircle className="w-5 h-5 text-[#1565C0]" aria-hidden="true" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-red-600" aria-hidden="true" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="font-bold text-sm leading-snug">
+                  {errorState.title}
+                </div>
+                <p className="text-xs leading-relaxed opacity-90 font-medium">
+                  {errorState.message}
+                </p>
+                {errorState.type === "server_error" && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => performSearch(ticket)}
+                      disabled={loading}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 text-xs font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                      Coba Lagi
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -137,7 +236,7 @@ function TrackingContent() {
             </div>
 
             <div className="text-xs font-semibold text-slate-500">
-              Dilaporkan: {format(new Date(aduan.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
+              Dilaporkan: {formatSafeDate(aduan.created_at, "dd MMMM yyyy, HH:mm")}
             </div>
           </div>
 
@@ -164,13 +263,13 @@ function TrackingContent() {
               </div>
               {aduan.updated_at && (
                 <div className="text-xs text-slate-500 pt-2 border-t border-[#90CAF9]/50">
-                  Ditindaklanjuti pada: {format(new Date(aduan.updated_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
+                  Ditindaklanjuti pada: {formatSafeDate(aduan.updated_at, "dd MMMM yyyy, HH:mm")}
                 </div>
               )}
             </div>
           )}
         </div>
-      ) : !loading && !error && (
+      ) : !loading && !errorState && (
         <div className="bg-white rounded-3xl shadow-sm border border-[#90CAF9]/60 p-8 md:p-12 text-center max-w-2xl mx-auto space-y-4">
           <div className="w-16 h-16 bg-[#E3F2FD] text-[#1565C0] rounded-full flex items-center justify-center mx-auto mb-2">
             <Search className="w-8 h-8" />

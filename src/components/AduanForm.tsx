@@ -16,6 +16,7 @@ import {
   Send 
 } from "lucide-react";
 import { AduanClassification } from "@/lib/supabase";
+import { parseSafeJsonResponse } from "@/lib/http";
 
 export function AduanForm() {
   const router = useRouter();
@@ -74,10 +75,25 @@ export function AduanForm() {
         body: formData,
       });
 
-      const result = await response.json();
+      const { data: result, isJson } = await parseSafeJsonResponse<{
+        success?: boolean;
+        message?: string;
+        ticketNumber?: string;
+        warning?: string;
+      }>(response);
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Gagal mengirim laporan. Silakan coba lagi.");
+      if (!response.ok || !result?.success) {
+        const fallbackMsg =
+          response.status === 429
+            ? "Batas pengiriman laporan telah tercapai. Silakan coba kembali beberapa saat lagi."
+            : response.status === 403
+            ? "Permintaan ditolak. Akses tidak sah."
+            : response.status >= 500 || !isJson
+            ? "Layanan sedang mengalami kendala sistem. Mohon coba beberapa saat lagi."
+            : "Gagal mengirim laporan. Silakan periksa kembali formulir Anda.";
+
+        const errorMessage = isJson && result?.message ? result.message : fallbackMsg;
+        throw new Error(errorMessage);
       }
 
       if (result.warning) {
@@ -86,8 +102,15 @@ export function AduanForm() {
 
       router.push(`/aduan/success/${result.ticketNumber}`);
     } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim aduan.";
+      console.error("[Submit Aduan Error]:", err);
+      let message = "Terjadi kesalahan saat mengirim laporan. Silakan coba beberapa saat lagi.";
+      if (err instanceof Error) {
+        if (!err.message.includes("JSON") && !err.message.includes("fetch") && !err.message.includes("token")) {
+          message = err.message;
+        } else if (err.message.includes("fetch")) {
+          message = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan coba lagi.";
+        }
+      }
       setError(message);
 
       setTurnstileToken(null);
@@ -166,6 +189,7 @@ export function AduanForm() {
               type="text"
               name="name"
               required
+              maxLength={100}
               placeholder="Ketik Nama Lengkap"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm"
             />
@@ -179,6 +203,7 @@ export function AduanForm() {
               type="email"
               name="email"
               required
+              maxLength={255}
               placeholder="email@contoh.com"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm"
             />
@@ -194,6 +219,7 @@ export function AduanForm() {
             type="text"
             name="title"
             required
+            maxLength={150}
             placeholder="Ketik Judul Laporan *"
             className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm"
           />
@@ -208,6 +234,7 @@ export function AduanForm() {
             name="description"
             rows={5}
             required
+            maxLength={5000}
             placeholder="Ketik Isi Laporan secara rinci dan kronologis *"
             className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm resize-none"
           ></textarea>
@@ -235,6 +262,7 @@ export function AduanForm() {
             <input
               type="text"
               name="location"
+              maxLength={255}
               placeholder="Misal: DKI Jakarta"
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm bg-white"
             />

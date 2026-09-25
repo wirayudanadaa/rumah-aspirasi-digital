@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { type Aduan } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { format } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
+import { formatSafeDate } from "@/lib/date";
 import { Loader2, Search, FileText, UserX, Building2, AlertCircle } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -41,12 +40,18 @@ function buildAduanQuery(
 
   let query = supabase
     .from("aduan")
-    .select("*", { count: "exact" })
+    .select("id, ticket_number, created_at, classification, is_anonymous, name, email, title, institution, status", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (search) {
-    const safeTerm = search.replace(/"/g, ""); // prevent quote issues in filter string
-    const term = `%${safeTerm}%`;
+    // EDGE-02: Escape ILIKE special characters to prevent wildcard injections
+    const escapedSearch = search
+      .replace(/"/g, "")      // prevent quote issues in PostgREST syntax
+      .replace(/\\/g, "\\\\") // escape backslash itself
+      .replace(/%/g, "\\%")   // escape percent
+      .replace(/_/g, "\\_");  // escape underscore
+
+    const term = `%${escapedSearch}%`;
     query = query.or(
       `ticket_number.ilike."${term}",title.ilike."${term}",name.ilike."${term}",institution.ilike."${term}"`,
     );
@@ -115,7 +120,7 @@ export default function AdminDashboard() {
         }
       } catch (err: unknown) {
         const e = err as { code?: string; message?: string; details?: string; hint?: string };
-        console.error("[ADMIN STATS DEBUG] fetch error:", { code: e?.code, message: e?.message, details: e?.details, hint: e?.hint });
+        console.error("[ADMIN STATS DEBUG] fetch error");
         if (isMounted) {
           if (e?.code === '42501' || e?.message?.includes('Access denied')) {
             setUnauthorized(true);
@@ -152,10 +157,10 @@ export default function AdminDashboard() {
           error: authError,
         } = await supabase.auth.getUser();
 
-        console.log("[ADMIN DASHBOARD DEBUG] hasUser:", !!user, "userId:", user?.id ?? "none");
+        // LOG-01: Removed debug log leaking userId
 
         if (authError || !user) {
-          console.error("[ADMIN DASHBOARD DEBUG] auth error:", authError?.message);
+          console.error("[ADMIN DASHBOARD DEBUG] auth check failed");
           if (isMounted) {
             setFetchError("Sesi autentikasi tidak ditemukan. Silakan login kembali.");
             setLoading(false);
@@ -173,17 +178,17 @@ export default function AdminDashboard() {
           PAGE_SIZE,
         );
 
-        console.log("[ADMIN DASHBOARD DEBUG] rowCount:", data?.length ?? 0, "totalCount:", count, "errorCode:", error?.code ?? null, "errorMessage:", error?.message ?? null);
+        // LOG-01: Removed verbose debug log
 
         if (error) throw error;
         if (isMounted) {
-          setAduans(data || []);
+          setAduans((data as unknown as Aduan[]) || []);
           if (count !== null) setTotalCount(count);
           setLoading(false);
         }
       } catch (err: unknown) {
         const e = err as { code?: string; message?: string };
-        console.error("[ADMIN DASHBOARD DEBUG] fetch error:", { code: e?.code, message: e?.message });
+        console.error("[ADMIN DASHBOARD DEBUG] fetch error");
         if (isMounted) {
           if (e?.code === '42501') {
             setUnauthorized(true);
@@ -438,7 +443,7 @@ export default function AdminDashboard() {
                     <td className="px-5 py-3">
                       <div className="font-mono font-bold text-[#0D47A1] text-xs">{aduan.ticket_number}</div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        {format(new Date(aduan.created_at), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                        {formatSafeDate(aduan.created_at, "dd MMM yyyy, HH:mm")}
                       </div>
                     </td>
 

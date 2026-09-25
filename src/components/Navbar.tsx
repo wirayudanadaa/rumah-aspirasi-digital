@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Home, Search, UserCheck, Send } from "lucide-react";
 

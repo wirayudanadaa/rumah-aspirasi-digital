@@ -1,5 +1,3 @@
-"use client";
-
 import { FileEdit, ShieldAlert, Clock, CheckCircle, XCircle } from "lucide-react";
 import { AduanStatus } from "@/lib/supabase";
 

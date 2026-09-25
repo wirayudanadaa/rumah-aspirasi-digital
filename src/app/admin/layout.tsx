@@ -75,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-[#0D47A1] truncate">Portal Pengelola - Rumah Aspirasi Digital</h1>
+          <h1 className="font-bold text-[#0D47A1] min-w-0 line-clamp-2 leading-tight text-sm sm:text-base">Portal Pengelola - Rumah Aspirasi Digital</h1>
         </header>
         <div className="flex-1 p-4 lg:p-8">
           {children}

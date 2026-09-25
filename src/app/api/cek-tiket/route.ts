@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isOriginAllowed } from "@/lib/security";
 import { checkTrackingRateLimit } from "@/lib/ratelimit";
-import { supabase, type AduanPublicTrack } from "@/lib/supabase";
+import { type AduanPublicTrack } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   // 1. Origin Guard
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
       originPresent: !!request.headers.get("origin")
     }));
     return NextResponse.json(
-      { success: false, message: "Permintaan ditolak. Akses tidak sah." },
+      { success: false, code: "FORBIDDEN", message: "Permintaan ditolak. Akses tidak sah." },
       { status: 403, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   if (!rlResult.allowed) {
     if (rlResult.reason === "rate_limited") {
       return NextResponse.json(
-        { success: false, message: "Batas pengecekan tiket telah tercapai. Silakan coba kembali beberapa saat lagi." },
+        { success: false, code: "RATE_LIMITED", message: "Batas pengecekan tiket telah tercapai. Silakan coba kembali beberapa saat lagi." },
         {
           status: 429,
           headers: {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json(
-      { success: false, message: "Layanan sedang tidak tersedia. Silakan coba lagi nanti." },
+      { success: false, code: "SERVICE_UNAVAILABLE", message: "Layanan sedang tidak tersedia. Silakan coba lagi nanti." },
       { status: 503, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -47,15 +48,15 @@ export async function POST(request: NextRequest) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { success: false, message: "Permintaan tidak valid." },
+      { success: false, code: "BAD_REQUEST", message: "Permintaan tidak valid." },
       { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 
   const { ticket } = body;
-  if (!ticket || typeof ticket !== "string") {
+  if (!ticket || typeof ticket !== "string" || ticket.length > 50) {
     return NextResponse.json(
-      { success: false, message: "Nomor tiket wajib diisi." },
+      { success: false, code: "BAD_REQUEST", message: "Nomor tiket tidak valid." },
       { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -64,22 +65,22 @@ export async function POST(request: NextRequest) {
   const ticketRegex = /^TKT-\d{6}-[A-Z0-9]{4}$/;
   if (!ticketRegex.test(ticket.trim())) {
     return NextResponse.json(
-      { success: false, message: "Nomor tiket tidak valid. Silakan periksa kembali nomor tiket Anda." },
+      { success: false, code: "BAD_REQUEST", message: "Nomor tiket tidak valid. Silakan periksa kembali nomor tiket Anda." },
       { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 
-  // 5. Call Supabase RPC
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .rpc("get_aduan_by_ticket", { p_ticket_number: ticket.trim() })
       .single();
 
     if (error) {
       if (error.code === "PGRST116") {
-        // Not found
+        // Not found: PGRST116 indicates 0 rows returned
         return NextResponse.json(
-          { success: false, message: "Nomor tiket tidak ditemukan." },
+          { success: false, code: "NOT_FOUND", message: "Nomor tiket tidak ditemukan." },
           { status: 404, headers: { "Cache-Control": "no-store" } }
         );
       }
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     if (!data) {
       return NextResponse.json(
-        { success: false, message: "Nomor tiket tidak ditemukan." },
+        { success: false, code: "NOT_FOUND", message: "Nomor tiket tidak ditemukan." },
         { status: 404, headers: { "Cache-Control": "no-store" } }
       );
     }
@@ -111,13 +112,31 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (err) {
+    const errorMessage =
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+        ? String((err as Record<string, unknown>).message)
+        : String(err);
+
+    const errorCode =
+      typeof err === "object" && err !== null && "code" in err
+        ? String((err as Record<string, unknown>).code)
+        : undefined;
+
     console.error(JSON.stringify({
       log_type: "[TRACKING ERROR]",
-      error: err instanceof Error ? err.message : "unknown",
+      error: errorMessage,
+      code: errorCode,
       ticket: ticket.trim(),
     }));
+
     return NextResponse.json(
-      { success: false, message: "Terjadi kesalahan internal server." },
+      {
+        success: false,
+        code: "INTERNAL_ERROR",
+        message: "Terjadi gangguan sistem. Layanan sedang mengalami kendala, silakan coba beberapa saat lagi."
+      },
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }

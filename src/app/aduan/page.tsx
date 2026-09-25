@@ -1,5 +1,3 @@
-"use client";
-
 import { AduanForm } from "@/components/AduanForm";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";

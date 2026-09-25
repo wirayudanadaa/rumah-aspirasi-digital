@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { AduanForm } from "@/components/AduanForm";
 
 import { 
@@ -29,6 +29,7 @@ export default function Home() {
     let isMounted = true;
     const fetchStats = async () => {
       try {
+        const supabase = createClient();
         const { data, error } = await supabase.rpc("get_public_aduan_stats");
         if (error) throw error;
         if (data && isMounted) {
@@ -41,8 +42,8 @@ export default function Home() {
             });
           }
         }
-      } catch (err) {
-        console.error("Failed to fetch stats via RPC (falling back to 0):", err);
+      } catch {
+        console.error("Failed to fetch stats via RPC (falling back to 0)");
         if (isMounted) {
           setStats({ total: 0, proses: 0, selesai: 0 });
         }

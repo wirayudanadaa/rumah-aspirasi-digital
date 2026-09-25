@@ -200,6 +200,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitRes
     );
   }
 
+  // ── Text Upper Bounds Validation (EDGE-01) ──
+  const TEXT_LIMITS = {
+    name: 100,
+    email: 255,
+    title: 150,
+    description: 5000,
+    location: 255,
+    institution: 150,
+    category: 50,
+  };
+
+  // Check required fields
+  if (
+    name.length > TEXT_LIMITS.name ||
+    email.length > TEXT_LIMITS.email ||
+    title.length > TEXT_LIMITS.title ||
+    description.length > TEXT_LIMITS.description
+  ) {
+    return NextResponse.json(
+      { success: false, message: "Panjang isian melebihi batas maksimal yang diizinkan." },
+      { status: 400 }
+    );
+  }
+
   // Classification
   const classificationRaw = (formData.get("classification") as string | null)?.trim() ?? "PENGADUAN";
   if (!VALID_CLASSIFICATIONS.has(classificationRaw)) {
@@ -214,6 +238,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitRes
   const location = (formData.get("location") as string | null)?.trim() || null;
   const institution = (formData.get("institution") as string | null)?.trim() || null;
   const category = (formData.get("category") as string | null)?.trim() || null;
+  
+  if (
+    (location && location.length > TEXT_LIMITS.location) ||
+    (institution && institution.length > TEXT_LIMITS.institution) ||
+    (category && category.length > TEXT_LIMITS.category)
+  ) {
+    return NextResponse.json(
+      { success: false, message: "Panjang isian tambahan melebihi batas maksimal yang diizinkan." },
+      { status: 400 }
+    );
+  }
+
   const isAnonymous = formData.get("is_anonymous") === "true";
   const isSecret = formData.get("is_secret") === "true";
 

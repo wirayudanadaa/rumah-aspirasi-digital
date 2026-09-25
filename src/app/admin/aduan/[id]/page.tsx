@@ -3,8 +3,7 @@
 import { useEffect, useState, use, useCallback, useMemo } from "react";
 import { type Aduan, type AduanStatus } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
-import { format } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
+import { formatSafeDate } from "@/lib/date";
 import {
   ArrowLeft,
   Loader2,
@@ -228,7 +227,7 @@ function TimelineEntry({ entry, isLast }: { entry: AduanHistory; isLast: boolean
           <span className="text-[10px] font-medium text-slate-400 shrink-0">{actor}</span>
         </div>
         <p className="text-[10px] text-slate-400 mb-2">
-          {format(new Date(entry.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
+          {formatSafeDate(entry.created_at, "dd MMMM yyyy, HH:mm")}
         </p>
         {body}
       </div>
@@ -269,15 +268,14 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     try {
       const { data, error: histErr } = await supabase
         .from("aduan_history")
-        .select("*")
+        .select("id, aduan_id, action, old_status, new_status, old_response, new_response, changed_by, created_at")
         .eq("aduan_id", id)
         .order("created_at", { ascending: false });
 
       if (histErr) throw histErr;
       setHistory((data as AduanHistory[]) ?? []);
-    } catch (err: unknown) {
-      const e = err as { code?: string; message?: string; details?: string; hint?: string };
-      console.error("[HISTORY FETCH ERROR]", { code: e?.code, message: e?.message, details: e?.details, hint: e?.hint });
+    } catch {
+      console.error("[HISTORY FETCH ERROR]");
       setHistoryError("Gagal memuat riwayat penanganan.");
     } finally {
       setHistoryLoading(false);
@@ -290,11 +288,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     setAttachmentsError("");
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log("[ATTACHMENT DEBUG]", {
-        routeId: id,
-        hasUser: Boolean(user),
-        userId: user?.id ?? null,
-      });
+      // LOG-01: Removed debug log leaking routeId and userId
 
       if (!user) {
         setAttachmentsError("Tidak terautentikasi.");
@@ -303,18 +297,16 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
       const { data, error: attErr } = await supabase
         .from("aduan_attachments")
-        .select("*")
+        .select("id, aduan_id, file_name, storage_path, mime_type, file_size, created_at")
         .eq("aduan_id", id)
         .order("created_at", { ascending: false });
 
       if (attErr) throw attErr;
 
-      console.log("[ATTACHMENT DEBUG]", { attachmentCount: data?.length ?? 0 });
+      // LOG-01: Removed attachment count debug log
       setAttachments((data as AduanAttachment[]) ?? []);
-    } catch (err: unknown) {
-      const e = err as { code?: string; message?: string };
-      console.error("[ATTACHMENTS FETCH ERROR]", err);
-      console.log("[ATTACHMENT DEBUG]", { errorCode: e?.code, errorMessage: e?.message });
+    } catch {
+      console.error("[ATTACHMENTS FETCH ERROR]");
       setAttachmentsError("Gagal memuat lampiran.");
     } finally {
       setAttachmentsLoading(false);
@@ -350,7 +342,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
         const { data, error } = await supabase
           .from("aduan")
-          .select("*")
+          .select("id, ticket_number, classification, status, created_at, updated_at, title, description, date_of_incident, location, institution, category, is_anonymous, name, email, phone, is_secret, response")
           .eq("id", id)
           .single();
 
@@ -361,8 +353,8 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
           setReplyContent((data as unknown as Record<string, string>).response || "");
           setLoading(false);
         }
-      } catch (error: unknown) {
-        console.error("Error fetching aduan:", error);
+      } catch {
+        console.error("Error fetching aduan details");
         if (isMounted) {
           setPageError("Data aduan tidak ditemukan atau Anda tidak memiliki akses.");
           setLoading(false);
@@ -381,8 +373,10 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   // Fetch history separately so setState calls don't cascade inside the aduan effect
   useEffect(() => {
     void (async () => {
-      await fetchHistory();
-      await fetchAttachments();
+      await Promise.all([
+        fetchHistory(),
+        fetchAttachments()
+      ]);
     })();
   }, [fetchHistory, fetchAttachments]);
 
@@ -400,8 +394,8 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       if (data?.signedUrl) {
         window.open(data.signedUrl, "_blank");
       }
-    } catch (err) {
-      console.error("[SIGNED URL ERROR]", err);
+    } catch {
+      console.error("[SIGNED URL ERROR]");
       setAttachmentFeedback({
         type: "error",
         message: "Gagal membuka lampiran. Silakan coba lagi.",
@@ -441,14 +435,8 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         type: "success",
         message: "Status dan tanggapan resmi berhasil diperbarui.",
       });
-    } catch (err: unknown) {
-      const error = err as Record<string, string>;
-      console.error("[ADMIN UPDATE ERROR]", {
-        code: error?.code,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-      });
+    } catch {
+      console.error("[ADMIN UPDATE ERROR]");
       setSaveFeedback({
         type: "error",
         message: "Gagal memperbarui data laporan. Periksa koneksi Anda dan coba lagi.",
@@ -543,7 +531,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                 <StatusBadge status={aduan.status} />
               </div>
               <div className="text-xs text-slate-400 font-medium">
-                {format(new Date(aduan.created_at), "dd MMMM yyyy, HH:mm", { locale: idLocale })}
+                {formatSafeDate(aduan.created_at, "dd MMMM yyyy, HH:mm")}
               </div>
             </div>
 
@@ -562,9 +550,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                   <Calendar className="w-3.5 h-3.5 text-[#1565C0]" /> Tanggal Kejadian
                 </span>
                 <span className="font-semibold text-slate-900">
-                  {aduan.date_of_incident
-                    ? format(new Date(aduan.date_of_incident), "dd MMM yyyy", { locale: idLocale })
-                    : "–"}
+                  {formatSafeDate(aduan.date_of_incident, "dd MMM yyyy", { fallback: "–" })}
                 </span>
               </div>
               <div>
@@ -670,7 +656,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                         <span className="w-1 h-1 rounded-full bg-slate-300" />
                         <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
                         <span className="w-1 h-1 rounded-full bg-slate-300" />
-                        <span>{format(new Date(att.created_at), "dd MMM yyyy, HH:mm")}</span>
+                        <span>{formatSafeDate(att.created_at, "dd MMM yyyy, HH:mm")}</span>
                       </div>
                     </div>
 
