@@ -202,6 +202,7 @@ export const TextHighlighter = forwardRef<TextHighlighterRef, TextHighlighterPro
       const baseStyles: React.CSSProperties = {
         backgroundSize: shouldAnimate ? animatedSize : initialSize,
         backgroundPosition: backgroundPosition,
+        backgroundRepeat: 'no-repeat',
         transition: `background-size ${transition.duration || 1}s ${getTimingFunction(transition.type)} ${transition.delay || 0}s`,
       };
 
@@ -215,7 +216,6 @@ export const TextHighlighter = forwardRef<TextHighlighterRef, TextHighlighterPro
         return {
           ...baseStyles,
           backgroundImage,
-          backgroundRepeat: 'no-repeat',
           boxDecorationBreak: 'clone' as const,
           WebkitBoxDecorationBreak: 'clone' as const,
         };
