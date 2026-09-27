@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/client";
 import { AduanForm } from "@/components/AduanForm";
 import { TechText } from "@/components/ui/tech-text";
 import { AnimatedButton } from "@/components/ui/animated-button";
-import { ScrollStack, ScrollStackItem } from "@/components/ui/scroll-stack";
 
 import { 
   AlertCircle, 
@@ -124,132 +123,149 @@ export default function Home() {
         </section>
 
         {/* 4. JENIS LAYANAN SECTION */}
-        <section className="max-w-5xl mx-auto px-4 py-16">
-          <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
-            <div className="inline-flex items-center gap-2 bg-[#E3F2FD] border border-[#90CAF9] px-3.5 py-1 rounded-full text-[#0D47A1] text-xs font-bold uppercase tracking-wider shadow-xs">
+        <section className="max-w-5xl mx-auto px-4 py-20 relative">
+          <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
+            <div className="inline-flex items-center gap-2 bg-[#E3F2FD] border border-[#90CAF9] px-4 py-1.5 rounded-full text-[#0D47A1] text-xs font-bold uppercase tracking-wider shadow-xs">
               Klasifikasi Laporan
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-[#0D47A1]">Jenis Klasifikasi Layanan</h2>
-            <p className="text-slate-600 text-sm font-medium">
-              Pilih klasifikasi yang tepat agar laporan Anda dapat dengan cepat diteruskan ke instansi berwenang. Gulir untuk melihat tumpukan kartu klasifikasi.
+            <h2 className="text-2xl md:text-4xl font-black text-[#0D47A1]">Jenis Klasifikasi Layanan</h2>
+            <p className="text-slate-600 text-sm md:text-base font-medium">
+              Pilih klasifikasi yang tepat agar laporan Anda dapat dengan cepat diteruskan ke instansi berwenang.
             </p>
           </div>
 
-          <div className="h-[540px] sm:h-[580px] md:h-[620px] w-full bg-slate-100/70 rounded-[32px] md:rounded-[44px] border border-[#90CAF9]/40 p-2 sm:p-4 shadow-inner relative overflow-hidden">
-            <ScrollStack
-              itemDistance={90}
-              itemScale={0.04}
-              itemStackDistance={26}
-              stackPosition="18%"
-              scaleEndPosition="8%"
-              baseScale={0.9}
-              className="h-full"
-            >
-              <ScrollStackItem itemClassName="bg-gradient-to-br from-[#1565C0] via-[#0D47A1] to-[#0A2E6B] text-white border border-white/20">
-                <div className="flex flex-col justify-between h-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center font-bold text-white shadow-inner">
-                        <AlertCircle className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <span className="text-xs uppercase tracking-wider font-semibold text-blue-200">Klasifikasi 01</span>
-                        <h3 className="text-2xl md:text-3xl font-black text-white">Pengaduan</h3>
-                      </div>
+          <div className="relative space-y-10 pb-12">
+            {/* Card 1: Pengaduan */}
+            <div className="sticky top-28 z-10 w-full min-h-[280px] p-6 sm:p-9 md:p-11 rounded-[32px] md:rounded-[40px] shadow-[0_16px_45px_rgba(13,71,161,0.18)] bg-gradient-to-br from-[#1565C0] via-[#0D47A1] to-[#0A2E6B] text-white border border-white/20 transition-all duration-300">
+              <div className="flex flex-col justify-between h-full space-y-5">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center font-bold text-white shadow-inner">
+                      <AlertCircle className="w-6 h-6" />
                     </div>
-                    <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase">
-                      Kendala & Pelanggaran
-                    </span>
+                    <div>
+                      <span className="text-xs uppercase tracking-wider font-semibold text-blue-200">Klasifikasi 01</span>
+                      <h3 className="text-2xl md:text-3xl font-black text-white">Pengaduan</h3>
+                    </div>
                   </div>
+                  <span className="bg-white/20 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase">
+                    Kendala & Pelanggaran
+                  </span>
+                </div>
 
-                  <p className="text-blue-100 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
-                    Laporan keluhan mengenai pelayanan publik yang tidak sesuai standar, kendala fasilitas umum, atau pelanggaran di lapangan.
-                  </p>
+                <p className="text-blue-100 text-sm md:text-base leading-relaxed max-w-3xl font-medium">
+                  Laporan keluhan mengenai pelayanan publik yang tidak sesuai standar, kendala fasilitas umum, atau pelanggaran di lapangan.
+                </p>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/15">
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/15">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       ⏱️ Respon: 1 - 3 Hari Kerja
                     </span>
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       🔒 Opsi: Anonim & Rahasia
                     </span>
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       📋 Contoh: Jalan rusak, lampu padam, pungli
                     </span>
                   </div>
+                  <a
+                    href="#form-aduan"
+                    className="inline-flex items-center gap-1.5 bg-white text-[#0D47A1] hover:bg-blue-50 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    Buat Pengaduan →
+                  </a>
                 </div>
-              </ScrollStackItem>
+              </div>
+            </div>
 
-              <ScrollStackItem itemClassName="bg-gradient-to-br from-[#00838F] via-[#006064] to-[#004D40] text-white border border-white/20">
-                <div className="flex flex-col justify-between h-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center font-bold text-white shadow-inner">
-                        <FileText className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <span className="text-xs uppercase tracking-wider font-semibold text-teal-200">Klasifikasi 02</span>
-                        <h3 className="text-2xl md:text-3xl font-black text-white">Aspirasi</h3>
-                      </div>
+            {/* Card 2: Aspirasi */}
+            <div className="sticky top-36 z-20 w-full min-h-[280px] p-6 sm:p-9 md:p-11 rounded-[32px] md:rounded-[40px] shadow-[0_16px_45px_rgba(0,131,143,0.18)] bg-gradient-to-br from-[#00838F] via-[#006064] to-[#004D40] text-white border border-white/20 transition-all duration-300">
+              <div className="flex flex-col justify-between h-full space-y-5">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center font-bold text-white shadow-inner">
+                      <FileText className="w-6 h-6" />
                     </div>
-                    <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase">
-                      Inovasi & Pembangunan
-                    </span>
+                    <div>
+                      <span className="text-xs uppercase tracking-wider font-semibold text-teal-200">Klasifikasi 02</span>
+                      <h3 className="text-2xl md:text-3xl font-black text-white">Aspirasi</h3>
+                    </div>
                   </div>
+                  <span className="bg-white/20 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase">
+                    Inovasi & Pembangunan
+                  </span>
+                </div>
 
-                  <p className="text-teal-100 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
-                    Usulan, masukan, ide kreatif, atau saran dari masyarakat demi kemajuan pembangunan dan peningkatan kualitas pelayanan publik.
-                  </p>
+                <p className="text-teal-100 text-sm md:text-base leading-relaxed max-w-3xl font-medium">
+                  Usulan, masukan, ide kreatif, atau saran dari masyarakat demi kemajuan pembangunan dan peningkatan kualitas pelayanan publik.
+                </p>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/15">
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/15">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       💡 Sifat: Partisipatif & Konstruktif
                     </span>
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       🏛️ Tindak Lanjut: Masukan Musyawarah / Forum
                     </span>
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       📋 Contoh: Ide taman kota, fasilitas disabilitas
                     </span>
                   </div>
+                  <a
+                    href="#form-aduan"
+                    className="inline-flex items-center gap-1.5 bg-white text-[#006064] hover:bg-teal-50 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    Kirim Aspirasi →
+                  </a>
                 </div>
-              </ScrollStackItem>
+              </div>
+            </div>
 
-              <ScrollStackItem itemClassName="bg-gradient-to-br from-[#283593] via-[#1A237E] to-[#121858] text-white border border-white/20">
-                <div className="flex flex-col justify-between h-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center font-bold text-white shadow-inner">
-                        <Building2 className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <span className="text-xs uppercase tracking-wider font-semibold text-indigo-200">Klasifikasi 03</span>
-                        <h3 className="text-2xl md:text-3xl font-black text-white">Permintaan Informasi</h3>
-                      </div>
+            {/* Card 3: Permintaan Informasi */}
+            <div className="sticky top-44 z-30 w-full min-h-[280px] p-6 sm:p-9 md:p-11 rounded-[32px] md:rounded-[40px] shadow-[0_16px_45px_rgba(40,53,147,0.18)] bg-gradient-to-br from-[#283593] via-[#1A237E] to-[#121858] text-white border border-white/20 transition-all duration-300">
+              <div className="flex flex-col justify-between h-full space-y-5">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center font-bold text-white shadow-inner">
+                      <Building2 className="w-6 h-6" />
                     </div>
-                    <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase">
-                      Transparansi Publik
-                    </span>
+                    <div>
+                      <span className="text-xs uppercase tracking-wider font-semibold text-indigo-200">Klasifikasi 03</span>
+                      <h3 className="text-2xl md:text-3xl font-black text-white">Permintaan Informasi</h3>
+                    </div>
                   </div>
+                  <span className="bg-white/20 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase">
+                    Transparansi Publik
+                  </span>
+                </div>
 
-                  <p className="text-indigo-100 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
-                    Permohonan data, penjelasan kebijakan resmi, atau klarifikasi informasi publik kepada instansi pemerintah berwenang.
-                  </p>
+                <p className="text-indigo-100 text-sm md:text-base leading-relaxed max-w-3xl font-medium">
+                  Permohonan data, penjelasan kebijakan resmi, atau klarifikasi informasi publik kepada instansi pemerintah berwenang.
+                </p>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/15">
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/15">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       ⏱️ Respon: 3 - 5 Hari Kerja
                     </span>
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       📜 Dasar: Hak Keterbukaan Informasi Publik
                     </span>
-                    <span className="bg-white/15 text-white px-3 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-white/15 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">
                       📋 Contoh: Regulasi, APBD, syarat perizinan
                     </span>
                   </div>
+                  <a
+                    href="#form-aduan"
+                    className="inline-flex items-center gap-1.5 bg-white text-[#1A237E] hover:bg-indigo-50 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    Minta Informasi →
+                  </a>
                 </div>
-              </ScrollStackItem>
-            </ScrollStack>
+              </div>
+            </div>
           </div>
         </section>
 
