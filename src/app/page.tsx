@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { createClient } from "@/lib/supabase/client";
 import { AduanForm } from "@/components/AduanForm";
-import { TextHighlighter } from "@/components/ui/text-highlighter";
+import { TechText } from "@/components/ui/tech-text";
 
 import { 
   AlertCircle, 
@@ -72,17 +72,25 @@ export default function Home() {
               Portal Pelayanan Pengaduan & Aspirasi Digital
             </div>
             
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-[#0D47A1] leading-tight">
-              <TextHighlighter 
-                highlightColor="linear-gradient(to right, rgb(254, 215, 170), rgb(253, 186, 116))"
-                direction="ltr"
-                triggerType="inView"
-                transition={{ type: 'spring', duration: 1, delay: 0.3 }}
-                className="px-3 py-1 rounded-xl inline-block"
-              >
-                Rumah Aspirasi Digital
-              </TextHighlighter>
-            </h1>
+            <h1 className="sr-only">Rumah Aspirasi Digital</h1>
+            <div className="h-20 sm:h-28 md:h-36 lg:h-44 w-full max-w-4xl mx-auto flex items-center justify-center">
+              <TechText
+                text="Rumah Aspirasi Digital"
+                color="#0D47A1"
+                accentColor="#1976D2"
+                fontWeight={800}
+                fontSize={120}
+                strokeWidth={1.5}
+                dashLength={4}
+                dashGap={2}
+                reveal="letter"
+                labels={true}
+                draggable={true}
+                sweep={true}
+                speed={1}
+                className="w-full h-full"
+              />
+            </div>
             
             <p className="text-slate-600 text-base md:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
               Sampaikan laporan keluhan, aspirasi pembangunan, dan permohonan informasi pelayanan publik secara terbuka, aman, dan mudah.
