@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { createClient } from "@/lib/supabase/client";
 import { AduanForm } from "@/components/AduanForm";
 import { TechText } from "@/components/ui/tech-text";
+import { AnimatedButton } from "@/components/ui/animated-button";
 
 import { 
   AlertCircle, 
@@ -97,21 +98,21 @@ export default function Home() {
             </p>
 
             {/* Call to Actions (CTA) */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <a
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-4">
+              <AnimatedButton
                 href="#form-aduan"
-                className="w-full sm:w-auto bg-[#1565C0] hover:bg-[#0D47A1] text-white px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+                variant="primary"
+                className="w-full sm:w-auto"
               >
-                <Send className="w-4 h-4" />
                 Sampaikan Aduan
-              </a>
-              <Link
+              </AnimatedButton>
+              <AnimatedButton
                 href="/cek-tiket"
-                className="w-full sm:w-auto bg-white hover:bg-[#E3F2FD] text-[#0D47A1] border border-[#90CAF9] px-8 py-3.5 rounded-2xl font-bold transition-all shadow-sm flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+                variant="secondary"
+                className="w-full sm:w-auto"
               >
-                <Search className="w-4 h-4 text-[#1565C0]" />
                 Cek Status Laporan
-              </Link>
+              </AnimatedButton>
             </div>
           </div>
         </section>
