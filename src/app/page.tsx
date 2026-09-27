@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { createClient } from "@/lib/supabase/client";
 import { AduanForm } from "@/components/AduanForm";
+import { TextHighlighter } from "@/components/ui/text-highlighter";
 
 import { 
   AlertCircle, 
@@ -72,7 +73,14 @@ export default function Home() {
             </div>
             
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-[#0D47A1] leading-tight">
-              Rumah Aspirasi Digital
+              <TextHighlighter 
+                highlightColor="bg-gradient-to-r from-[#90CAF9]/40 to-[#E3F2FD]/40" 
+                useTailwindClasses={true}
+                triggerType="inView"
+                className="px-4"
+              >
+                Rumah Aspirasi Digital
+              </TextHighlighter>
             </h1>
             
             <p className="text-slate-600 text-base md:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
