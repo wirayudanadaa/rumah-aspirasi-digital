@@ -68,9 +68,8 @@ export default function Home() {
         {/* 2. HERO SECTION */}
         <section className="bg-gradient-to-b from-[#E3F2FD] via-white to-slate-100 border-b border-[#90CAF9] pt-16 pb-28 px-4 relative overflow-hidden">
           <div className="max-w-4xl mx-auto text-center space-y-4 z-10 relative">
-            <div className="inline-flex items-center gap-2 bg-white/80 border border-[#90CAF9] px-4 py-1.5 rounded-full text-[#0D47A1] text-xs font-bold uppercase tracking-wider shadow-sm">
-              <HomeIcon className="w-4 h-4 text-[#1565C0]" />
-              Portal Pelayanan Pengaduan & Aspirasi Digital
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/90 border border-[#90CAF9] rounded-2xl text-[#1565C0] shadow-xs hover:shadow-sm hover:scale-105 transition-all">
+              <HomeIcon className="w-6 h-6 text-[#1565C0]" />
             </div>
             
             <h1 className="sr-only">Rumah Aspirasi Digital</h1>
