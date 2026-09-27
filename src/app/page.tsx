@@ -74,10 +74,11 @@ export default function Home() {
             
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-[#0D47A1] leading-tight">
               <TextHighlighter 
-                highlightColor="bg-gradient-to-r from-[#90CAF9]/40 to-[#E3F2FD]/40" 
-                useTailwindClasses={true}
+                highlightColor="linear-gradient(to right, rgb(254, 215, 170), rgb(253, 186, 116))"
+                direction="ltr"
                 triggerType="inView"
-                className="px-4"
+                transition={{ type: 'spring', duration: 1, delay: 0.3 }}
+                className="px-3 py-1 rounded-xl inline-block"
               >
                 Rumah Aspirasi Digital
               </TextHighlighter>
