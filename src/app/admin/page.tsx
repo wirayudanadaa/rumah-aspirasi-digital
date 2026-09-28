@@ -5,8 +5,9 @@ import { type Aduan } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { formatSafeDate } from "@/lib/date";
+import { CrystalLoader } from "@/components/ui/CrystalLoader";
 import { 
-  Loader2, 
+  // Loader2,
   Search, 
   FileText, 
   UserX, 
@@ -350,9 +351,6 @@ export default function AdminDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200/60">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard Laporan</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            Pengawasan, verifikasi, dan tindak lanjut laporan masyarakat
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {isFiltered && (
@@ -384,7 +382,7 @@ export default function AdminDashboard() {
             <Inbox className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-2xl font-bold text-slate-900 tracking-tight">
-            {statsLoading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : globalStats.total}
+            {statsLoading ? <CrystalLoader size={20} className="text-slate-400" /> : globalStats.total}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">seluruh laporan</div>
         </button>
@@ -404,7 +402,7 @@ export default function AdminDashboard() {
             <AlertCircle className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-2xl font-bold text-amber-900 tracking-tight">
-            {statsLoading ? <Loader2 className="w-5 h-5 animate-spin text-amber-400" /> : globalStats.pending}
+            {statsLoading ? <CrystalLoader size={20} className="text-amber-400" /> : globalStats.pending}
           </div>
           <div className="text-[11px] text-amber-600/80 mt-1">perlu verifikasi</div>
         </button>
@@ -424,7 +422,7 @@ export default function AdminDashboard() {
             <Clock className="w-4 h-4 text-purple-500" />
           </div>
           <div className="text-2xl font-bold text-purple-900 tracking-tight">
-            {statsLoading ? <Loader2 className="w-5 h-5 animate-spin text-purple-400" /> : globalStats.verifikasi}
+            {statsLoading ? <CrystalLoader size={20} className="text-purple-400" /> : globalStats.verifikasi}
           </div>
           <div className="text-[11px] text-purple-600/80 mt-1">siap penugasan</div>
         </button>
@@ -444,7 +442,7 @@ export default function AdminDashboard() {
             <Layers className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-bold text-blue-900 tracking-tight">
-            {statsLoading ? <Loader2 className="w-5 h-5 animate-spin text-blue-400" /> : globalStats.proses}
+            {statsLoading ? <CrystalLoader size={20} className="text-blue-400" /> : globalStats.proses}
           </div>
           <div className="text-[11px] text-blue-600/80 mt-1">ditindaklanjuti</div>
         </button>
@@ -464,7 +462,7 @@ export default function AdminDashboard() {
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-2xl font-bold text-emerald-900 tracking-tight">
-            {statsLoading ? <Loader2 className="w-5 h-5 animate-spin text-emerald-400" /> : globalStats.selesai}
+            {statsLoading ? <CrystalLoader size={20} className="text-emerald-400" /> : globalStats.selesai}
           </div>
           <div className="text-[11px] text-emerald-600/80 mt-1">laporan ditutup</div>
         </button>
@@ -484,7 +482,7 @@ export default function AdminDashboard() {
             <X className="w-4 h-4 text-rose-500" />
           </div>
           <div className="text-2xl font-bold text-rose-900 tracking-tight">
-            {statsLoading ? <Loader2 className="w-5 h-5 animate-spin text-rose-400" /> : globalStats.ditolak}
+            {statsLoading ? <CrystalLoader size={20} className="text-rose-400" /> : globalStats.ditolak}
           </div>
           <div className="text-[11px] text-rose-600/80 mt-1">tidak memenuhi syarat</div>
         </button>
@@ -561,7 +559,9 @@ export default function AdminDashboard() {
             </button>
           )}
           {isSearchDebouncing && (
-            <Loader2 className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 animate-spin" aria-hidden="true" />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 flex items-center justify-center">
+              <CrystalLoader size={14} />
+            </div>
           )}
         </div>
 
@@ -606,7 +606,9 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/80 overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Loader2 className="w-7 h-7 animate-spin mb-3 text-blue-600" />
+            <div className="mb-3 text-blue-600 flex items-center justify-center">
+              <CrystalLoader size={28} />
+            </div>
             <p className="font-medium text-sm text-slate-600">Menyinkronkan data laporan...</p>
           </div>
         ) : fetchError ? (

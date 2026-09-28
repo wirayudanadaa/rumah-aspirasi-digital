@@ -12,11 +12,12 @@ import {
   Paperclip, 
   UserX, 
   Lock, 
-  Loader2, 
+  // Loader2, 
   Send 
 } from "lucide-react";
 import { AduanClassification } from "@/lib/supabase";
 import { parseSafeJsonResponse } from "@/lib/http";
+import { CrystalLoader } from "@/components/ui/CrystalLoader";
 
 export function AduanForm() {
   const router = useRouter();
@@ -374,7 +375,7 @@ export function AduanForm() {
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin shrink-0" />
+                <CrystalLoader size={20} className="shrink-0" />
                 MEMPROSES LAPORAN...
               </>
             ) : (

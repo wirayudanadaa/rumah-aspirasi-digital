@@ -6,7 +6,8 @@ import { type AduanPublicTrack } from "@/lib/supabase";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { StatusStepper } from "@/components/StatusStepper";
-import { Search, Loader2, AlertCircle, MessageCircle, SearchX, AlertTriangle, RefreshCw, Clock } from "lucide-react";
+import { Search, AlertCircle, MessageCircle, SearchX, AlertTriangle, RefreshCw, Clock } from "lucide-react";
+import { CrystalLoader } from "@/components/ui/CrystalLoader";
 import { formatSafeDate } from "@/lib/date";
 import { parseSafeJsonResponse } from "@/lib/http";
 
@@ -167,7 +168,7 @@ function TrackingContent() {
             disabled={loading || !ticket.trim()}
             className="bg-[#1565C0] hover:bg-[#0D47A1] text-white px-8 py-3.5 rounded-2xl font-bold uppercase tracking-wider text-sm transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-md shrink-0"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "LACAK"}
+            {loading ? <CrystalLoader size={20} /> : "LACAK"}
           </button>
         </form>
 
@@ -294,7 +295,7 @@ export default function CekTiketPage() {
         <Navbar />
         <Suspense fallback={
           <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-[#1565C0]" />
+            <CrystalLoader size={32} className="text-[#1565C0]" />
           </div>
         }>
           <TrackingContent />

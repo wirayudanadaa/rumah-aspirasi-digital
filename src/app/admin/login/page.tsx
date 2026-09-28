@@ -3,7 +3,8 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, Lock, Mail, ShieldCheck, AlertCircle } from "lucide-react";
+import { Lock, Mail, ShieldCheck, AlertCircle } from "lucide-react";
+import { CrystalLoader } from "@/components/ui/CrystalLoader";
 
 function LoginForm() {
   const supabase = createClient();
@@ -138,7 +139,7 @@ function LoginForm() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <CrystalLoader size={20} />
                   Memverifikasi...
                 </>
               ) : (
@@ -170,7 +171,7 @@ export default function AdminLoginPage() {
 
         <Suspense fallback={
           <div className="bg-white rounded-3xl shadow-lg border border-[#90CAF9]/60 p-8 flex items-center justify-center h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-[#1565C0]" />
+            <CrystalLoader size={32} className="text-[#1565C0]" />
           </div>
         }>
           <LoginForm />

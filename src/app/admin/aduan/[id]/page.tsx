@@ -4,9 +4,10 @@ import { useEffect, useState, use, useCallback, useMemo } from "react";
 import { type Aduan, type AduanStatus } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import { formatSafeDate } from "@/lib/date";
+import { CrystalLoader } from "@/components/ui/CrystalLoader";
 import {
   ArrowLeft,
-  Loader2,
+  // Loader2,
   User,
   Mail,
   Calendar,
@@ -494,7 +495,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <CrystalLoader size={32} className="text-blue-600" />
       </div>
     );
   }
@@ -667,7 +668,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
             {attachmentsLoading ? (
               <div className="flex items-center gap-3 text-slate-500 py-2">
-                <Loader2 className="w-5 h-5 animate-spin text-[#1565C0]" />
+                <CrystalLoader size={20} className="text-[#1565C0]" />
                 <span className="text-sm">Memuat lampiran...</span>
               </div>
             ) : attachmentsError ? (
@@ -789,7 +790,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
               disabled={saving}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow-2xs transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {saving ? <CrystalLoader size={16} /> : <Send className="w-4 h-4" />}
               {saving ? "Menyimpan..." : "Simpan & Perbarui"}
             </button>
           </div>
@@ -803,7 +804,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
             {historyLoading ? (
               <div className="flex items-center gap-3 text-slate-500 py-4">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <CrystalLoader size={20} className="text-blue-600" />
                 <span className="text-sm">Memuat riwayat...</span>
               </div>
             ) : historyError ? (
