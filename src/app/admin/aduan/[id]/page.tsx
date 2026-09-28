@@ -107,15 +107,20 @@ function FeedbackBanner({
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    PENDING: "bg-amber-100 text-amber-800 border-amber-300",
-    VERIFIKASI: "bg-purple-100 text-purple-800 border-purple-300",
-    PROSES: "bg-blue-100 text-blue-800 border-blue-300",
-    SELESAI: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    DITOLAK: "bg-red-100 text-red-800 border-red-300",
+  const dotColor: Record<string, string> = {
+    PENDING: "bg-amber-500",
+    VERIFIKASI: "bg-purple-500",
+    PROSES: "bg-blue-500",
+    SELESAI: "bg-emerald-500",
+    DITOLAK: "bg-rose-500",
   };
-  const cls = map[status] ?? "bg-slate-100 text-slate-700 border-slate-300";
-
+  const badgeStyle: Record<string, string> = {
+    PENDING: "bg-amber-50 text-amber-700 border-amber-200/70",
+    VERIFIKASI: "bg-purple-50 text-purple-700 border-purple-200/70",
+    PROSES: "bg-blue-50 text-blue-700 border-blue-200/70",
+    SELESAI: "bg-emerald-50 text-emerald-700 border-emerald-200/70",
+    DITOLAK: "bg-rose-50 text-rose-700 border-rose-200/70",
+  };
   const labelMap: Record<string, string> = {
     PENDING: "PENDING",
     VERIFIKASI: "VERIFIKASI",
@@ -124,9 +129,14 @@ function StatusBadge({ status }: { status: string }) {
     DITOLAK: "DITOLAK",
   };
 
+  const dot = dotColor[status] ?? "bg-slate-400";
+  const cls = badgeStyle[status] ?? "bg-slate-50 text-slate-700 border-slate-200";
+  const label = labelMap[status] ?? status;
+
   return (
-    <span className={`${cls} px-2 py-0.5 rounded-full text-[11px] font-extrabold border`}>
-      {labelMap[status] ?? status}
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {label}
     </span>
   );
 }
@@ -448,10 +458,30 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
   const getClassificationBadge = (cls?: string) => {
     switch (cls) {
-      case "PENGADUAN": return <span className="bg-[#1565C0] text-white font-extrabold px-3 py-1 rounded-md text-xs">PENGADUAN</span>;
-      case "ASPIRASI": return <span className="bg-[#00838F] text-white font-extrabold px-3 py-1 rounded-md text-xs">ASPIRASI</span>;
-      case "PERMINTAAN_INFORMASI": return <span className="bg-[#283593] text-white font-extrabold px-3 py-1 rounded-md text-xs">PERMINTAAN INFORMASI</span>;
-      default: return null;
+      case "PENGADUAN":
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+            Pengaduan
+          </span>
+        );
+      case "ASPIRASI":
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200/60">
+            Aspirasi
+          </span>
+        );
+      case "PERMINTAAN_INFORMASI":
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+            Permintaan Informasi
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600">
+            Lainnya
+          </span>
+        );
     }
   };
 
@@ -464,7 +494,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1565C0]" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -472,19 +502,19 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   if (unauthorized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-        <div className="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-100 max-w-md w-full">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full">
           <div className="flex justify-center mb-4">
-            <div className="bg-red-100 p-3 rounded-2xl">
-              <UserX className="w-10 h-10 text-red-600" />
+            <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
+              <UserX className="w-8 h-8 text-rose-600" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Akses Ditolak</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Akses Ditolak</h2>
           <p className="text-sm text-slate-500 mb-6">
             Akun Anda tidak memiliki hak akses administrator. Silakan hubungi pengelola sistem untuk mendapatkan izin akses.
           </p>
           <button
             onClick={handleSignOut}
-            className="w-full bg-[#1565C0] hover:bg-[#0D47A1] text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-xl transition-colors shadow-2xs text-sm"
           >
             Keluar
           </button>
@@ -495,10 +525,11 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
   if (pageError || !aduan) {
     return (
-      <div className="bg-red-50 text-red-700 p-6 rounded-2xl border border-red-200 text-center space-y-4">
-        <p className="font-bold">{pageError || "Aduan tidak ditemukan."}</p>
-        <Link href="/admin" className="text-sm font-bold text-[#1565C0] hover:underline">
-          Kembali ke Dashboard Admin
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-4 shadow-2xs max-w-md mx-auto">
+        <p className="font-semibold text-slate-800">{pageError || "Aduan tidak ditemukan."}</p>
+        <Link href="/admin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Kembali ke Dashboard Admin</span>
         </Link>
       </div>
     );
@@ -506,9 +537,12 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 text-slate-900 font-sans pb-12">
-      <Link href="/admin" className="inline-flex items-center text-sm font-bold text-slate-500 hover:text-[#1565C0] transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Kembali ke Daftar Aduan
+      <Link 
+        href="/admin" 
+        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200/80 px-3.5 py-2 rounded-xl transition-all shadow-2xs"
+      >
+        <ArrowLeft className="w-4 h-4 text-slate-500" />
+        <span>Kembali ke Daftar Laporan</span>
       </Link>
 
       {/* ── Page-level layout ─────────────────────────────────────────────── */}
@@ -520,7 +554,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         <div className="md:col-span-2 space-y-6">
 
           {/* ── Card: Report Detail ─────────────────────────────────────── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 p-6 space-y-5">
+          <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/80 p-6 space-y-5">
             {/* Header row: classification + ticket + date */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3 flex-wrap">
@@ -663,7 +697,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => handleViewAttachment(att.storage_path, false)}
-                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-[#E3F2FD] hover:text-[#1565C0] hover:border-[#90CAF9] text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                        className="px-3 py-1.5 bg-white border border-slate-200/80 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                         Lihat
@@ -689,10 +723,10 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         <div className="space-y-6">
 
           {/* ── Card: Tindak Lanjut Laporan (Unified Workflow) ─────────── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-[#1565C0]/30 p-6 space-y-5">
+          <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/80 p-6 space-y-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <MessageSquare className="w-4 h-4 text-[#1565C0]" />
-              <h3 className="font-bold text-[#0D47A1] text-sm uppercase tracking-wider">Tindak Lanjut Laporan</h3>
+              <MessageSquare className="w-4 h-4 text-blue-600" />
+              <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Tindak Lanjut Laporan</h3>
             </div>
 
             {/* Current status display */}
@@ -713,7 +747,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                 id="status-select"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as AduanStatus)}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1565C0]"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="PENDING">PENDING — Baru Masuk</option>
                 <option value="VERIFIKASI">VERIFIKASI — Sedang Diverifikasi</option>
@@ -737,7 +771,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
                 placeholder="Ketik tanggapan atau perkembangan penanganan laporan..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1565C0] font-medium text-black text-sm resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-900 text-sm resize-none"
               />
             </div>
 
@@ -753,7 +787,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
             <button
               onClick={handleSaveTindakLanjut}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold px-6 py-3 rounded-xl shadow-sm transition-colors text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow-2xs transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {saving ? "Menyimpan..." : "Simpan & Perbarui"}
@@ -761,15 +795,15 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
           </div>
 
           {/* ── Card: Riwayat Penanganan (Audit Trail) ─────────────────── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-[#90CAF9]/60 p-6">
+          <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/80 p-6">
             <div className="flex items-center gap-2 pb-3 mb-5 border-b border-slate-100">
-              <History className="w-4 h-4 text-[#1565C0]" />
-              <h3 className="font-bold text-[#0D47A1] text-sm uppercase tracking-wider">Riwayat Penanganan</h3>
+              <History className="w-4 h-4 text-blue-600" />
+              <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Riwayat Penanganan</h3>
             </div>
 
             {historyLoading ? (
               <div className="flex items-center gap-3 text-slate-500 py-4">
-                <Loader2 className="w-5 h-5 animate-spin text-[#1565C0]" />
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                 <span className="text-sm">Memuat riwayat...</span>
               </div>
             ) : historyError ? (
