@@ -8,7 +8,9 @@ export interface ExportHistory {
   created_at: string;
   action: string;
   actor_email?: string | null;
+  changed_by?: string | null;
   notes?: string | null;
+  new_response?: string | null;
 }
 
 export interface ExportFilters {
@@ -89,35 +91,77 @@ export const exportSinglePDF = (aduan: Aduan, history: ExportHistory[]) => {
   doc.line(14, currentY, 196, currentY); currentY += 8;
 
   // Isi Laporan
+  if (currentY > 250) {
+    doc.addPage();
+    currentY = 20;
+  }
   doc.setFont("helvetica", "bold");
   doc.text("ISI LAPORAN", 14, currentY);
   doc.setFont("helvetica", "normal");
   currentY += 8;
-  const descLines = doc.splitTextToSize(aduan.description, 180);
-  doc.text(descLines, 14, currentY); currentY += (descLines.length * 6) + 4;
+  const descLines = doc.splitTextToSize(aduan.description || "-", 180);
+  for (const line of descLines) {
+    if (currentY > 275) {
+      doc.addPage();
+      currentY = 20;
+    }
+    doc.text(line, 14, currentY);
+    currentY += 6;
+  }
+  currentY += 4;
 
-  doc.line(14, currentY, 196, currentY); currentY += 8;
+  if (currentY > 250) {
+    doc.addPage();
+    currentY = 20;
+  } else {
+    doc.line(14, currentY, 196, currentY);
+    currentY += 8;
+  }
 
   // Tindak Lanjut
+  if (currentY > 250) {
+    doc.addPage();
+    currentY = 20;
+  }
   doc.setFont("helvetica", "bold");
   doc.text("TINDAK LANJUT", 14, currentY);
   doc.setFont("helvetica", "normal");
   currentY += 8;
-  if (aduan.reply_content) {
-    const replyLines = doc.splitTextToSize(aduan.reply_content, 180);
-    doc.text(replyLines, 14, currentY); currentY += (replyLines.length * 6) + 4;
+
+  const rawResponse = typeof aduan.response === "string"
+    ? aduan.response.trim()
+    : (typeof aduan.reply_content === "string" ? aduan.reply_content.trim() : "");
+  const responseText = rawResponse;
+
+  if (responseText) {
+    const replyLines = doc.splitTextToSize(responseText, 180);
+    for (const line of replyLines) {
+      if (currentY > 275) {
+        doc.addPage();
+        currentY = 20;
+      }
+      doc.text(line, 14, currentY);
+      currentY += 6;
+    }
+    currentY += 4;
   } else {
-    doc.text("Belum ada tanggapan resmi.", 14, currentY); currentY += 10;
+    doc.text("Belum ada tanggapan resmi.", 14, currentY);
+    currentY += 10;
   }
   
   if (currentY > 250) {
     doc.addPage();
     currentY = 20;
   } else {
-    doc.line(14, currentY, 196, currentY); currentY += 8;
+    doc.line(14, currentY, 196, currentY);
+    currentY += 8;
   }
 
   // Riwayat Penanganan
+  if (currentY > 240) {
+    doc.addPage();
+    currentY = 20;
+  }
   doc.setFont("helvetica", "bold");
   doc.text("RIWAYAT PENANGANAN", 14, currentY);
   currentY += 4;
@@ -125,8 +169,8 @@ export const exportSinglePDF = (aduan: Aduan, history: ExportHistory[]) => {
   const historyData = history.map(h => [
     formatSafeDate(h.created_at, "dd MMM yyyy, HH:mm"),
     h.action,
-    h.actor_email || '-',
-    h.notes || '-'
+    h.actor_email || (h.changed_by ? "Admin" : "-"),
+    h.notes || h.new_response || '-'
   ]);
 
   autoTable(doc, {
@@ -139,14 +183,25 @@ export const exportSinglePDF = (aduan: Aduan, history: ExportHistory[]) => {
   });
 
   const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
-  doc.setFontSize(10);
-  doc.text("Rumah Aspirasi Digital • Dokumen Resmi", 14, finalY);
+  if (finalY > 280) {
+    doc.addPage();
+    doc.setFontSize(10);
+    doc.text("Rumah Aspirasi Digital • Dokumen Resmi", 14, 20);
+  } else {
+    doc.setFontSize(10);
+    doc.text("Rumah Aspirasi Digital • Dokumen Resmi", 14, finalY);
+  }
 
   doc.save(`RAP-${aduan.ticket_number}.pdf`);
 };
 
 export const exportSingleXLSX = (aduan: Aduan, history: ExportHistory[]) => {
   const wb = XLSX.utils.book_new();
+
+  const rawResponse = typeof aduan.response === "string"
+    ? aduan.response.trim()
+    : (typeof aduan.reply_content === "string" ? aduan.reply_content.trim() : "");
+  const responseText = rawResponse;
 
   // Sheet 1: Detail Aduan
   const detailData = [
@@ -161,7 +216,7 @@ export const exportSingleXLSX = (aduan: Aduan, history: ExportHistory[]) => {
     ["Nama Pelapor", aduan.is_anonymous ? "ANONIM" : (aduan.name || "-")],
     ["Email", aduan.is_anonymous ? "ANONIM" : (aduan.email || "-")],
     ["Deskripsi", aduan.description],
-    ["Tanggapan", aduan.reply_content || "-"],
+    ["Tanggapan", responseText || "-"],
     ["Privasi", aduan.is_secret ? "RAHASIA" : "UMUM"]
   ];
   
@@ -173,8 +228,8 @@ export const exportSingleXLSX = (aduan: Aduan, history: ExportHistory[]) => {
   const historyData = history.map(h => ({
     Tanggal: formatSafeDate(h.created_at, "dd MMM yyyy, HH:mm"),
     Aksi: h.action,
-    Actor: h.actor_email || "-",
-    Keterangan: h.notes || "-"
+    Actor: h.actor_email || (h.changed_by ? "Admin" : "-"),
+    Keterangan: h.notes || h.new_response || "-"
   }));
   const wsHistory = XLSX.utils.json_to_sheet(historyData);
   XLSX.utils.book_append_sheet(wb, wsHistory, "Riwayat");
@@ -228,22 +283,29 @@ export const exportBulkXLSX = (aduans: Aduan[]) => {
   const wb = XLSX.utils.book_new();
 
   // 1. Rekap Laporan
-  const tableData = aduans.map((a, index) => ({
-    No: index + 1,
-    "Nomor Tiket": a.ticket_number,
-    "Tanggal Dibuat": formatSafeDate(a.created_at, "dd MMM yyyy"),
-    Klasifikasi: a.classification,
-    Judul: a.title,
-    "Nama Pelapor": a.is_anonymous ? "ANONIM" : a.name,
-    Email: a.is_anonymous ? "ANONIM" : a.email,
-    Kategori: a.category || "-",
-    Instansi: a.institution || "-",
-    "Tanggal Kejadian": a.date_of_incident ? formatSafeDate(a.date_of_incident, "dd MMM yyyy") : "-",
-    Lokasi: a.location || "-",
-    Status: a.status,
-    "Tanggal Update": a.replied_at ? formatSafeDate(a.replied_at, "dd MMM yyyy, HH:mm") : "-",
-    Tanggapan: a.reply_content || "-"
-  }));
+  const tableData = aduans.map((a, index) => {
+    const rawResponse = typeof a.response === "string"
+      ? a.response.trim()
+      : (typeof a.reply_content === "string" ? a.reply_content.trim() : "");
+    const responseText = rawResponse;
+
+    return {
+      No: index + 1,
+      "Nomor Tiket": a.ticket_number,
+      "Tanggal Dibuat": formatSafeDate(a.created_at, "dd MMM yyyy"),
+      Klasifikasi: a.classification,
+      Judul: a.title,
+      "Nama Pelapor": a.is_anonymous ? "ANONIM" : a.name,
+      Email: a.is_anonymous ? "ANONIM" : a.email,
+      Kategori: a.category || "-",
+      Instansi: a.institution || "-",
+      "Tanggal Kejadian": a.date_of_incident ? formatSafeDate(a.date_of_incident, "dd MMM yyyy") : "-",
+      Lokasi: a.location || "-",
+      Status: a.status,
+      "Tanggal Update": a.replied_at ? formatSafeDate(a.replied_at, "dd MMM yyyy, HH:mm") : (a.updated_at ? formatSafeDate(a.updated_at, "dd MMM yyyy, HH:mm") : "-"),
+      Tanggapan: responseText || "-"
+    };
+  });
 
   const wsRekap = XLSX.utils.json_to_sheet(tableData);
   XLSX.utils.book_append_sheet(wb, wsRekap, "Rekap Laporan");

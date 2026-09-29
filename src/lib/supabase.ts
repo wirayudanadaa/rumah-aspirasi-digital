@@ -19,9 +19,11 @@ export interface Aduan {
   is_anonymous: boolean;
   is_secret: boolean;
   status: AduanStatus;
+  response?: string | null;
   reply_content?: string;
   replied_at?: string;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface AduanPublicTrack {

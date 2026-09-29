@@ -372,7 +372,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
         if (isMounted) {
           setAduan(data);
           setStatus(data.status);
-          setReplyContent((data as unknown as Record<string, string>).response || "");
+          setReplyContent(data.response || "");
           setLoading(false);
         }
       } catch {
@@ -474,7 +474,12 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       if (error) throw error;
 
       // Update local aduan state
-      setAduan({ ...aduan, status });
+      setAduan(prev => prev ? {
+        ...prev,
+        status,
+        response: normalizedResponse,
+        updated_at: new Date().toISOString()
+      } : null);
       setReplyContent(normalizedResponse ?? "");
 
       // Refresh history timeline & attachments
