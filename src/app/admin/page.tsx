@@ -258,7 +258,7 @@ export default function AdminDashboard() {
   const fetchAllForExport = async () => {
     let query = supabase
       .from("aduan")
-      .select("id, ticket_number, created_at, classification, is_anonymous, name, email, title, institution, status, category, date_of_incident, location, response, replied_at")
+      .select("id, ticket_number, created_at, classification, is_anonymous, is_secret, name, email, title, description, institution, status, category, date_of_incident, location, response, replied_at")
       .order("created_at", { ascending: false });
 
     if (debouncedSearchTerm) {
