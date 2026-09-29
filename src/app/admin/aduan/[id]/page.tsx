@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, useCallback, useMemo } from "react";
+import { useEffect, useState, use, useCallback, useMemo, useRef } from "react";
 import { type Aduan, type AduanStatus } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import { formatSafeDate } from "@/lib/date";
@@ -27,6 +27,8 @@ import {
   XCircle,
   FileText,
   Table,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { exportSinglePDF, exportSingleXLSX } from "@/lib/exportUtils";
@@ -267,6 +269,9 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const [saveFeedback, setSaveFeedback] = useState<FeedbackState>({ type: "idle" });
   const [attachmentFeedback, setAttachmentFeedback] = useState<FeedbackState>({ type: "idle" });
 
+  const [adminAttachment, setAdminAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportingXLSX, setExportingXLSX] = useState(false);
 
@@ -426,6 +431,33 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
     setSaving(true);
     setSaveFeedback({ type: "idle" });
 
+    // Handle Upload First if exists
+    if (adminAttachment) {
+      const uploadFormData = new FormData();
+      uploadFormData.append("attachment", adminAttachment);
+
+      try {
+        const uploadRes = await fetch(`/api/admin/aduan/${aduan.id}/attachment`, {
+          method: "POST",
+          body: uploadFormData,
+        });
+
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.message || "Gagal mengunggah lampiran.");
+        }
+        
+        setAdminAttachment(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      } catch (err: unknown) {
+        console.error("[ADMIN UPLOAD ERROR]", err);
+        const errMsg = err instanceof Error ? err.message : "Gagal mengunggah lampiran.";
+        setSaveFeedback({ type: "error", message: errMsg });
+        setSaving(false);
+        return; // stop execution if upload fails
+      }
+    }
+
     // Normalize response: empty string → NULL
     const normalizedResponse = replyContent.trim() === "" ? null : replyContent.trim();
 
@@ -445,12 +477,15 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       setAduan({ ...aduan, status });
       setReplyContent(normalizedResponse ?? "");
 
-      // Refresh history timeline without full page reload
-      await fetchHistory();
+      // Refresh history timeline & attachments
+      await Promise.all([
+        fetchHistory(),
+        fetchAttachments()
+      ]);
 
       setSaveFeedback({
         type: "success",
-        message: "Status dan tanggapan resmi berhasil diperbarui.",
+        message: adminAttachment ? "Tanggapan dan lampiran berhasil diperbarui." : "Status dan tanggapan resmi berhasil diperbarui.",
       });
     } catch {
       console.error("[ADMIN UPDATE ERROR]");
@@ -712,41 +747,99 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
             ) : !attachments || attachments.length === 0 ? (
               <p className="text-slate-400 text-sm italic">Tidak ada lampiran.</p>
             ) : (
-              <div className="space-y-3">
-                {attachments.map((att) => (
-                  <div
-                    key={att.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200 p-4 rounded-xl"
-                  >
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="font-bold text-sm text-slate-900 truncate">{att.file_name}</span>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
-                        <span>{formatBytes(att.file_size)}</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-300" />
-                        <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-300" />
-                        <span>{formatSafeDate(att.created_at, "dd MMM yyyy, HH:mm")}</span>
-                      </div>
-                    </div>
+              <div className="space-y-6">
+                {(() => {
+                  const citizenAtts = attachments.filter(a => !a.storage_path.includes("/admin/"));
+                  const adminAtts = attachments.filter(a => a.storage_path.includes("/admin/"));
+                  
+                  return (
+                    <>
+                      {citizenAtts.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-1">
+                            Lampiran Pelapor
+                          </h4>
+                          {citizenAtts.map((att) => (
+                            <div
+                              key={att.id}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200 p-4 rounded-xl"
+                            >
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="font-bold text-sm text-slate-900 truncate">{att.file_name}</span>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+                                  <span>{formatBytes(att.file_size)}</span>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                  <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                  <span>{formatSafeDate(att.created_at, "dd MMM yyyy, HH:mm")}</span>
+                                </div>
+                              </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleViewAttachment(att.storage_path, false)}
-                        className="px-3 py-1.5 bg-white border border-slate-200/80 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        Lihat
-                      </button>
-                      <button
-                        onClick={() => handleViewAttachment(att.storage_path, true)}
-                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Unduh
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  onClick={() => handleViewAttachment(att.storage_path, false)}
+                                  className="px-3 py-1.5 bg-white border border-slate-200/80 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  Lihat
+                                </button>
+                                <button
+                                  onClick={() => handleViewAttachment(att.storage_path, true)}
+                                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  Unduh
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {adminAtts.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-1 mt-2">
+                            Lampiran Tanggapan / Admin
+                          </h4>
+                          {adminAtts.map((att) => (
+                            <div
+                              key={att.id}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50 border border-blue-200/60 p-4 rounded-xl"
+                            >
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="font-bold text-sm text-slate-900 truncate">{att.file_name}</span>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+                                  <span>{formatBytes(att.file_size)}</span>
+                                  <span className="w-1 h-1 rounded-full bg-blue-300" />
+                                  <span className="truncate max-w-[120px] sm:max-w-none">{att.mime_type}</span>
+                                  <span className="w-1 h-1 rounded-full bg-blue-300" />
+                                  <span>{formatSafeDate(att.created_at, "dd MMM yyyy, HH:mm")}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  onClick={() => handleViewAttachment(att.storage_path, false)}
+                                  className="px-3 py-1.5 bg-white border border-slate-200/80 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  Lihat
+                                </button>
+                                <button
+                                  onClick={() => handleViewAttachment(att.storage_path, true)}
+                                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  Unduh
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -838,6 +931,81 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
               />
             )}
 
+            {/* Admin Attachment Input */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Lampiran Tanggapan (Opsional)
+                </label>
+              </div>
+              
+              {!adminAttachment ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 rounded-xl cursor-pointer transition-colors group"
+                >
+                  <Paperclip className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                  <div className="text-sm text-slate-500 group-hover:text-blue-600 font-medium">
+                    Pilih Lampiran
+                    <span className="block text-[10px] font-normal text-slate-400 group-hover:text-blue-400/70 mt-0.5">
+                      PDF, DOCX, PNG, JPG, JPEG • max 2MB
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".pdf,.docx,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 2 * 1024 * 1024) {
+                        setSaveFeedback({ type: "error", message: `Ukuran file melebihi batas 2 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB).` });
+                        return;
+                      }
+                      const allowed = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png", "image/webp"];
+                      if (!allowed.includes(file.type) && !file.name.endsWith('.docx')) {
+                        setSaveFeedback({ type: "error", message: "Format file tidak didukung." });
+                        return;
+                      }
+                      setSaveFeedback({ type: "idle" });
+                      setAdminAttachment(file);
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3.5 bg-blue-50 border border-blue-200/60 rounded-xl">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white flex items-center justify-center shadow-xs border border-blue-100">
+                      {adminAttachment.type.includes("image") ? (
+                        <ImageIcon className="w-4 h-4 text-blue-500" />
+                      ) : (
+                        <FileText className="w-4 h-4 text-blue-500" />
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-semibold text-slate-700 truncate">
+                        {adminAttachment.name}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {(adminAttachment.size / 1024).toFixed(0)} KB
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setAdminAttachment(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-white rounded-lg transition-colors shrink-0"
+                    title="Hapus lampiran"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Submit action */}
             <button
               onClick={handleSaveTindakLanjut}
@@ -845,7 +1013,7 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
               className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow-2xs transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? <CrystalLoader size={16} /> : <Send className="w-4 h-4" />}
-              {saving ? "Menyimpan..." : "Simpan & Perbarui"}
+              {saving ? (adminAttachment ? "Menyimpan & Mengunggah..." : "Menyimpan...") : "Simpan & Perbarui"}
             </button>
           </div>
 

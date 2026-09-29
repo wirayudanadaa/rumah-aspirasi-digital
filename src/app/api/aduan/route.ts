@@ -5,17 +5,12 @@ import { randomUUID } from "crypto";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { checkAduanRateLimit } from "@/lib/ratelimit";
 import { isOriginAllowed } from "@/lib/security";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+import { 
+  MAX_FILE_SIZE, 
+  ALLOWED_MIME_TYPES, 
+  sanitizeFilename, 
+  detectMimeFromMagicBytes 
+} from "@/lib/fileValidation";
 
 const VALID_CLASSIFICATIONS = new Set([
   "PENGADUAN",
@@ -23,65 +18,7 @@ const VALID_CLASSIFICATIONS = new Set([
   "PERMINTAAN_INFORMASI",
 ]);
 
-/**
- * Known magic-byte signatures for allowed file types.
- * Checked against the first N bytes of the file buffer.
- */
-const MAGIC_BYTES: Array<{ mime: string; bytes: number[] }> = [
-  { mime: "application/pdf", bytes: [0x25, 0x50, 0x44, 0x46] }, // %PDF
-  { mime: "image/jpeg", bytes: [0xff, 0xd8, 0xff] },
-  { mime: "image/png", bytes: [0x89, 0x50, 0x4e, 0x47] }, // .PNG
-  { mime: "image/webp", bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF (+ WEBP at offset 8)
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function sanitizeFilename(raw: string): string {
-  // Take the basename only (strip path)
-  const basename = raw.split(/[\\/]/).pop() ?? raw;
-
-  // Replace non-safe characters with underscores; keep alphanumeric, dot, dash
-  const cleaned = basename
-    .replace(/[^a-zA-Z0-9.\-_]/g, "_")
-    .replace(/_+/g, "_")
-    .toLowerCase();
-
-  // Limit length to 80 characters
-  if (cleaned.length > 80) {
-    const ext = cleaned.lastIndexOf(".");
-    if (ext > 0) {
-      const extension = cleaned.slice(ext);
-      return cleaned.slice(0, 80 - extension.length) + extension;
-    }
-    return cleaned.slice(0, 80);
-  }
-
-  return cleaned || "unnamed";
-}
-
-function detectMimeFromMagicBytes(buffer: Uint8Array): string | null {
-  for (const sig of MAGIC_BYTES) {
-    if (buffer.length < sig.bytes.length) continue;
-    const match = sig.bytes.every((b, i) => buffer[i] === b);
-    if (match) {
-      // Special check for WebP: after RIFF header, offset 8-11 should be WEBP
-      if (sig.mime === "image/webp") {
-        if (
-          buffer.length >= 12 &&
-          buffer[8] === 0x57 && // W
-          buffer[9] === 0x45 && // E
-          buffer[10] === 0x42 && // B
-          buffer[11] === 0x50 // P
-        ) {
-          return "image/webp";
-        }
-        continue; // RIFF but not WEBP — skip
-      }
-      return sig.mime;
-    }
-  }
-  return null;
-}
 
 function safeErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
