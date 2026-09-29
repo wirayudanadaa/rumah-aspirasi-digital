@@ -4,7 +4,19 @@ import * as XLSX from 'xlsx';
 import { Aduan } from './supabase';
 import { formatSafeDate } from './date';
 
-export const exportSinglePDF = (aduan: Aduan, history: any[]) => {
+export interface ExportHistory {
+  created_at: string;
+  action: string;
+  actor_email?: string | null;
+  notes?: string | null;
+}
+
+export interface ExportFilters {
+  status: string;
+  classification: string;
+}
+
+export const exportSinglePDF = (aduan: Aduan, history: ExportHistory[]) => {
   const doc = new jsPDF();
   
   // Header
@@ -126,14 +138,14 @@ export const exportSinglePDF = (aduan: Aduan, history: any[]) => {
     headStyles: { fillColor: [21, 101, 192] }
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 15;
+  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
   doc.setFontSize(10);
   doc.text("Rumah Aspirasi Digital • Dokumen Resmi", 14, finalY);
 
   doc.save(`RAP-${aduan.ticket_number}.pdf`);
 };
 
-export const exportSingleXLSX = (aduan: Aduan, history: any[]) => {
+export const exportSingleXLSX = (aduan: Aduan, history: ExportHistory[]) => {
   const wb = XLSX.utils.book_new();
 
   // Sheet 1: Detail Aduan
@@ -170,7 +182,7 @@ export const exportSingleXLSX = (aduan: Aduan, history: any[]) => {
   XLSX.writeFile(wb, `RAP-${aduan.ticket_number}.xlsx`);
 };
 
-export const exportBulkPDF = (aduans: Aduan[], filters: any) => {
+export const exportBulkPDF = (aduans: Aduan[], filters: ExportFilters) => {
   const doc = new jsPDF('landscape');
   
   doc.setFontSize(16);
@@ -212,7 +224,7 @@ export const exportBulkPDF = (aduans: Aduan[], filters: any) => {
   doc.save(`RAP-Rekap-Aduan-${today}.pdf`);
 };
 
-export const exportBulkXLSX = (aduans: Aduan[], filters: any) => {
+export const exportBulkXLSX = (aduans: Aduan[]) => {
   const wb = XLSX.utils.book_new();
 
   // 1. Rekap Laporan

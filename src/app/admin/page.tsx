@@ -285,7 +285,7 @@ export default function AdminDashboard() {
     const { data, error } = await query;
     if (error) throw error;
     
-    return data.map(d => ({ ...d, reply_content: d.response })) as any[];
+    return data.map(d => ({ ...d, reply_content: d.response })) as Aduan[];
   };
 
   const handleExportBulkPDF = async () => {
@@ -308,10 +308,7 @@ export default function AdminDashboard() {
     setExportingBulkXLSX(true);
     try {
       const data = await fetchAllForExport();
-      exportBulkXLSX(data, {
-        status: statusFilter === "ALL" ? "Semua" : statusFilter,
-        classification: classificationFilter === "ALL" ? "Semua" : classificationFilter,
-      });
+      exportBulkXLSX(data);
     } catch (e) {
       console.error(e);
       alert("Gagal melakukan export XLSX. Silakan coba lagi.");
