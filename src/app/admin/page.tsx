@@ -19,8 +19,10 @@ import {
   RotateCcw, 
   Layers,
   Inbox,
-  X
+  X,
+  Table
 } from "lucide-react";
+import { exportBulkPDF, exportBulkXLSX } from "@/lib/exportUtils";
 
 const PAGE_SIZE = 15;
 
@@ -108,6 +110,8 @@ export default function AdminDashboard() {
   });
 
   const [unauthorized, setUnauthorized] = useState(false);
+  const [exportingBulkPDF, setExportingBulkPDF] = useState(false);
+  const [exportingBulkXLSX, setExportingBulkXLSX] = useState(false);
 
   const isSearchDebouncing = searchTerm !== debouncedSearchTerm;
 
@@ -250,6 +254,71 @@ export default function AdminDashboard() {
   };
 
   const isFiltered = searchTerm !== "" || classificationFilter !== "ALL" || statusFilter !== "ALL";
+
+  const fetchAllForExport = async () => {
+    let query = supabase
+      .from("aduan")
+      .select("id, ticket_number, created_at, classification, is_anonymous, name, email, title, institution, status, category, date_of_incident, location, response, replied_at")
+      .order("created_at", { ascending: false });
+
+    if (debouncedSearchTerm) {
+      const escapedSearch = debouncedSearchTerm
+        .replace(/"/g, "")
+        .replace(/\\/g, "\\\\")
+        .replace(/%/g, "\\%")
+        .replace(/_/g, "\\_");
+
+      const term = `%${escapedSearch}%`;
+      query = query.or(
+        `ticket_number.ilike."${term}",title.ilike."${term}",name.ilike."${term}",institution.ilike."${term}"`,
+      );
+    }
+
+    if (classificationFilter !== "ALL") {
+      query = query.eq("classification", classificationFilter);
+    }
+
+    if (statusFilter !== "ALL") {
+      query = query.eq("status", statusFilter);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    return data.map(d => ({ ...d, reply_content: d.response })) as any[];
+  };
+
+  const handleExportBulkPDF = async () => {
+    setExportingBulkPDF(true);
+    try {
+      const data = await fetchAllForExport();
+      exportBulkPDF(data, {
+        status: statusFilter === "ALL" ? "Semua" : statusFilter,
+        classification: classificationFilter === "ALL" ? "Semua" : classificationFilter,
+      });
+    } catch (e) {
+      console.error(e);
+      alert("Gagal melakukan export PDF. Silakan coba lagi.");
+    } finally {
+      setExportingBulkPDF(false);
+    }
+  };
+
+  const handleExportBulkXLSX = async () => {
+    setExportingBulkXLSX(true);
+    try {
+      const data = await fetchAllForExport();
+      exportBulkXLSX(data, {
+        status: statusFilter === "ALL" ? "Semua" : statusFilter,
+        classification: classificationFilter === "ALL" ? "Semua" : classificationFilter,
+      });
+    } catch (e) {
+      console.error(e);
+      alert("Gagal melakukan export XLSX. Silakan coba lagi.");
+    } finally {
+      setExportingBulkXLSX(false);
+    }
+  };
 
   // Badges & Labels
   const getStatusBadge = (status: string) => {
@@ -598,6 +667,25 @@ export default function AdminDashboard() {
           {/* Result Count Indicator */}
           <div className="text-xs font-medium text-slate-500 px-2">
             {totalCount} laporan
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={handleExportBulkPDF}
+              disabled={exportingBulkPDF || loading}
+              className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-xl text-xs transition-colors disabled:opacity-50"
+            >
+              {exportingBulkPDF ? <CrystalLoader size={12} className="text-red-600" /> : <FileText className="w-3.5 h-3.5" />}
+              {exportingBulkPDF ? "Exporting..." : "Rekap PDF"}
+            </button>
+            <button
+              onClick={handleExportBulkXLSX}
+              disabled={exportingBulkXLSX || loading}
+              className="flex items-center gap-1.5 px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 font-semibold rounded-xl text-xs transition-colors disabled:opacity-50"
+            >
+              {exportingBulkXLSX ? <CrystalLoader size={12} className="text-green-700" /> : <Table className="w-3.5 h-3.5" />}
+              {exportingBulkXLSX ? "Exporting..." : "Rekap XLSX"}
+            </button>
           </div>
         </div>
       </div>

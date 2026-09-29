@@ -25,8 +25,11 @@ import {
   Download,
   CheckCircle2,
   XCircle,
+  FileText,
+  Table,
 } from "lucide-react";
 import Link from "next/link";
+import { exportSinglePDF, exportSingleXLSX } from "@/lib/exportUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,6 +267,9 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
   const [saveFeedback, setSaveFeedback] = useState<FeedbackState>({ type: "idle" });
   const [attachmentFeedback, setAttachmentFeedback] = useState<FeedbackState>({ type: "idle" });
 
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingXLSX, setExportingXLSX] = useState(false);
+
   const [history, setHistory] = useState<AduanHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -454,6 +460,34 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!aduan) return;
+    setExportingPDF(true);
+    try {
+      exportSinglePDF(aduan, history);
+      setSaveFeedback({ type: "success", message: "PDF berhasil dibuat" });
+    } catch (error) {
+      console.error(error);
+      setSaveFeedback({ type: "error", message: "Gagal membuat file PDF. Silakan coba lagi." });
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
+  const handleExportXLSX = async () => {
+    if (!aduan) return;
+    setExportingXLSX(true);
+    try {
+      exportSingleXLSX(aduan, history);
+      setSaveFeedback({ type: "success", message: "XLSX berhasil dibuat" });
+    } catch (error) {
+      console.error(error);
+      setSaveFeedback({ type: "error", message: "Gagal membuat file XLSX. Silakan coba lagi." });
+    } finally {
+      setExportingXLSX(false);
     }
   };
 
@@ -725,9 +759,29 @@ export default function AdminAduanDetail({ params }: { params: Promise<{ id: str
 
           {/* ── Card: Tindak Lanjut Laporan (Unified Workflow) ─────────── */}
           <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/80 p-6 space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <MessageSquare className="w-4 h-4 text-blue-600" />
-              <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Tindak Lanjut Laporan</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Tindak Lanjut Laporan</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  disabled={exportingPDF}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-lg text-xs transition-colors disabled:opacity-50"
+                >
+                  {exportingPDF ? <CrystalLoader size={12} className="text-red-600" /> : <FileText className="w-3.5 h-3.5" />}
+                  {exportingPDF ? "Exporting..." : "Export PDF"}
+                </button>
+                <button
+                  onClick={handleExportXLSX}
+                  disabled={exportingXLSX}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 font-semibold rounded-lg text-xs transition-colors disabled:opacity-50"
+                >
+                  {exportingXLSX ? <CrystalLoader size={12} className="text-green-700" /> : <Table className="w-3.5 h-3.5" />}
+                  {exportingXLSX ? "Exporting..." : "Export XLSX"}
+                </button>
+              </div>
             </div>
 
             {/* Current status display */}
